@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io/fs"
+	"net/http"
 	"os"
+	"strings"
 
 	"vouchchain/internal/bootstrap"
 	"vouchchain/internal/controller"
@@ -16,6 +20,43 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcfg"
 )
+
+// 前端静态资源（Vue3 + Element Plus 构建产物 web/dist）内嵌进二进制，实现单文件自包含分发。
+// 运行目录若存在 web/dist（开发/热更）则优先用文件系统，否则回退到内嵌资源。
+//
+//go:embed all:web/dist
+var webDistFS embed.FS
+
+// serveFrontend 注册前端静态资源服务：优先文件系统 web/dist，缺失时回退内嵌资源（单文件分发）。
+func serveFrontend(s *ghttp.Server) {
+	// 开发/热更：运行目录存在 web/dist 时用文件系统（无需重新编译 Go）
+	if _, err := os.Stat("web/dist"); err == nil {
+		s.AddSearchPath("web/dist")
+		return
+	}
+	// 单文件分发：从内嵌 FS 提供，SPA 路由回退 index.html
+	sub, err := fs.Sub(webDistFS, "web/dist")
+	if err != nil {
+		g.Log().Fatalf(context.Background(), "[web] 内嵌前端加载失败：%v", err)
+	}
+	fileServer := http.FileServer(http.FS(sub))
+	s.BindHandler("/*", func(r *ghttp.Request) {
+		p := strings.TrimPrefix(r.URL.Path, "/")
+		// API / SCIM / 文档等内部路径不参与 SPA 回退，保持 404
+		if p == "api" || strings.HasPrefix(p, "api/") ||
+			p == "scim" || strings.HasPrefix(p, "scim/") ||
+			p == "openapi.json" || p == "scalar" || p == "swagger" {
+			r.Response.WriteStatus(http.StatusNotFound)
+			return
+		}
+		if p != "" {
+			if _, err := fs.Stat(sub, p); err != nil {
+				r.Request.URL.Path = "/" // SPA 回退 index.html
+			}
+		}
+		fileServer.ServeHTTP(r.Response.BufferWriter, r.Request)
+	})
+}
 
 func main() {
 	// Docker Compose 一键启动：允许用环境变量 VOUCHCHAIN_DB_LINK 覆盖 DB 连接串（config 文件零改动）
@@ -40,9 +81,9 @@ func main() {
 	s := g.Server()
 	s.Use(middleware.Auth()) // 开关式鉴权：devMode 旁路 / Casdoor JWT 校验（SSO→RBAC 前置）
 
-	// 前端静态资源（Vue3 + Element Plus 构建产物 web/dist），与 /api 同源提供
-	// 运行目录需包含 web/dist；Docker 分发时 COPY web/dist 进镜像
-	s.AddSearchPath("web/dist")
+	// 前端静态资源（Vue3 + Element Plus 构建产物 web/dist），与 /api 同源提供。
+	// 单文件分发（内嵌 web/dist）或运行目录存在 web/dist 时均可；二进制不再强制依赖外部目录。
+	serveFrontend(s)
 
 	// SCIM 2.0：身份提供方推送用户/组。独立 Bearer token，与用户登录 JWT 是两套凭据；
 	// 走 /scim/v2 而非 /api，避免被应用级 RBAC 规则误判（机器到机器接口只认 SCIM_TOKEN）。
