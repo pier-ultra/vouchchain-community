@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS seal_approval_rule (
   approval_template_id BIGINT NOT NULL DEFAULT 0, -- approval_template.id（0=未配置→回退简化审批）
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- R-B3：用印申请挂审批实例（审批引擎产物），0=未走引擎（简化路径）

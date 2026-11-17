@@ -8,7 +8,7 @@ VALUES (
   'MCP 客户端',
   'VouchChain MCP 客户端技能：连接内置 /mcp 服务端（Bearer token 鉴权），列出并调用合同/发票/审批/法律知识库等 9 个工具。提供 python（mcp_client.py）与 node（mcp_client.mjs）两种零依赖客户端。',
   'mcp,MCP客户端,MCP 客户端,客户端工具,工具调用,工具列表,mcp_client,调用工具',
-  $$# VouchChain MCP 客户端技能
+  '# VouchChain MCP 客户端技能
 
 通过内置 MCP 服务端（Streamable HTTP，端点 `/mcp`）调用 VouchChain 工具。客户端位于 `skills/vouchchain-mcp/`，两种实现任选，行为一致。
 
@@ -22,11 +22,11 @@ VALUES (
 # Python（零依赖，Python 3）
 python skills/vouchchain-mcp/mcp_client.py --endpoint http://localhost:8000/mcp --token <MCP_TOKEN> ping
 python skills/vouchchain-mcp/mcp_client.py ... list
-python skills/vouchchain-mcp/mcp_client.py ... call query_contracts '{"keyword":"服务"}'
+python skills/vouchchain-mcp/mcp_client.py ... call query_contracts ''{"keyword":"服务"}''
 
 # Node（零依赖，Node 18+）
 node skills/vouchchain-mcp/mcp_client.mjs --token <MCP_TOKEN> list
-node skills/vouchchain-mcp/mcp_client.mjs call search_legal_kb '{"query":"逾期付款违约金","topK":3}'
+node skills/vouchchain-mcp/mcp_client.mjs call search_legal_kb ''{"query":"逾期付款违约金","topK":3}''
 ```
 环境变量 `MCP_TOKEN` / `VOUCHCHAIN_MCP_ENDPOINT` / `VOUCHCHAIN_MCP_USER` 可免去重复传参。
 
@@ -51,7 +51,7 @@ node skills/vouchchain-mcp/mcp_client.mjs call search_legal_kb '{"query":"逾期
 
 ## 边界
 - 相对方画像只基于内部合同库，不臆测工商/司法数据。
-- 向量服务未启用时法律检索自动降级为关键词检索（如实说明，不谎报语义检索）。$$,
+- 向量服务未启用时法律检索自动降级为关键词检索（如实说明，不谎报语义检索）。',
   '1.0.0',
   'skills/vouchchain-mcp',
   0,

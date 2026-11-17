@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS revrec_confirm (
   status VARCHAR(12) NOT NULL DEFAULT 'draft',    -- draft→confirmed（人审确认铁律）
   draft_id BIGINT NOT NULL DEFAULT 0,             -- 关联 journal_draft
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   confirmed_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_revrec_obl ON revrec_confirm (obligation_id);
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS revrec_receipt (
   received_at DATE NOT NULL,
   remark VARCHAR(200) NOT NULL DEFAULT '',
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- B1: 印章台账
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS seal (
   status VARCHAR(12) NOT NULL DEFAULT 'active',   -- active在用/disabled停用/destroyed销毁
   remark VARCHAR(200) NOT NULL DEFAULT '',
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- B2: 用印申请与登记（审批简化：legal/admin 批；七字段对齐商业口径）
@@ -66,6 +66,6 @@ CREATE TABLE IF NOT EXISTS seal_apply (
   device VARCHAR(120) NOT NULL DEFAULT '',          -- 来源设备/IP（七字段）
   file_hash VARCHAR(64) NOT NULL DEFAULT '',        -- 文件哈希（七字段）
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_seal_apply_seal ON seal_apply (seal_id);

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS expense_split (
   bearer VARCHAR(20) NOT NULL DEFAULT 'company',  -- company=公司承担 / personal=个人垫付
   remark VARCHAR(300) NOT NULL DEFAULT '',
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_expense_split_invoice ON expense_split (invoice_id);
 CREATE INDEX IF NOT EXISTS idx_expense_split_dept ON expense_split (dept_id);
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS budget (
   amount_limit NUMERIC(14,2) NOT NULL,
   remark VARCHAR(200) NOT NULL DEFAULT '',
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (dept_id, period, category)
 );
 
@@ -36,5 +36,5 @@ CREATE TABLE IF NOT EXISTS travel_standard (
   note VARCHAR(200) NOT NULL DEFAULT '',
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

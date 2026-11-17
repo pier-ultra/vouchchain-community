@@ -21,6 +21,7 @@ import (
 	"github.com/gogf/gf/v2/os/glog"
 
 	"vouchchain/pkg/cryptoutil"
+	"vouchchain/pkg/dbutil"
 )
 
 // 法律条款知识库（RAG 最小闭环）：
@@ -302,33 +303,35 @@ func SearchClauses(ctx context.Context, query string, topK int) (*SearchResult, 
 	if topK <= 0 || topK > 10 {
 		topK = 4
 	}
-	// 1) 向量检索
-	vs, err := Embed(ctx, []string{query})
-	if err == nil && len(vs) == 1 {
-		vec, _ := json.Marshal(vs[0])
-		rows, qerr := g.DB().GetAll(ctx,
-			"SELECT id, title, content, source, category FROM kb_clause WHERE embedding IS NOT NULL ORDER BY embedding <=> ?::vector LIMIT ?", string(vec), topK)
-		if qerr == nil && len(rows) > 0 {
-			clauses := toClauses(rows)
-			mode := "vector"
-			// 2) 重排精排（候选多于 1 条才有意义）
-			if len(clauses) > 1 {
-				docs := make([]string, len(clauses))
-				for i, c := range clauses {
-					docs[i] = c.Title + " " + c.Content
-				}
-				if order, rerr := Rerank(ctx, query, docs); rerr == nil && len(order) > 0 {
-					sorted := make([]Clause, 0, len(clauses))
-					for _, i := range order {
-						if i < len(clauses) {
-							sorted = append(sorted, clauses[i])
-						}
+	// 1) 向量检索（pg：pgvector 余弦距离；sqlite 无 pgvector，如实降级为关键词检索）
+	if !dbutil.IsSQLite() {
+		vs, err := Embed(ctx, []string{query})
+		if err == nil && len(vs) == 1 {
+			vec, _ := json.Marshal(vs[0])
+			rows, qerr := g.DB().GetAll(ctx,
+				"SELECT id, title, content, source, category FROM kb_clause WHERE embedding IS NOT NULL ORDER BY embedding <=> ?::vector LIMIT ?", string(vec), topK)
+			if qerr == nil && len(rows) > 0 {
+				clauses := toClauses(rows)
+				mode := "vector"
+				// 2) 重排精排（候选多于 1 条才有意义）
+				if len(clauses) > 1 {
+					docs := make([]string, len(clauses))
+					for i, c := range clauses {
+						docs[i] = c.Title + " " + c.Content
 					}
-					clauses = sorted
-					mode = "vector+rerank"
+					if order, rerr := Rerank(ctx, query, docs); rerr == nil && len(order) > 0 {
+						sorted := make([]Clause, 0, len(clauses))
+						for _, i := range order {
+							if i < len(clauses) {
+								sorted = append(sorted, clauses[i])
+							}
+						}
+						clauses = sorted
+						mode = "vector+rerank"
+					}
 				}
+				return &SearchResult{Mode: mode, Clauses: clauses}, nil
 			}
-			return &SearchResult{Mode: mode, Clauses: clauses}, nil
 		}
 	}
 	// 3) 降级：关键词 LIKE（向量/重排不可用时不让检索断）
@@ -423,8 +426,15 @@ func Enrich(ctx context.Context) int {
 				continue
 			}
 			vec, _ := json.Marshal(v)
-			if _, err := g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ?::vector WHERE id = ?", string(vec), ids[i]); err != nil {
-				glog.Warningf(ctx, "[kb] 向量落库失败 #%d：%v", ids[i], err)
+			// pg：向量落 pgvector 列；sqlite：embedding 为 TEXT 列，直接存 JSON 文本（无 ::vector cast）
+			var uerr error
+			if dbutil.IsSQLite() {
+				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ? WHERE id = ?", string(vec), ids[i])
+			} else {
+				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ?::vector WHERE id = ?", string(vec), ids[i])
+			}
+			if uerr != nil {
+				glog.Warningf(ctx, "[kb] 向量落库失败 #%d：%v", ids[i], uerr)
 				continue
 			}
 			done++

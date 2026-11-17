@@ -89,7 +89,7 @@ Web 管理台（1440×900）：
 - **移动端**：uni-app（Vue 3），H5 / 微信小程序 / App 三端
 - **AI**：Eino LLM Agent（知识库问答 / 简报润色）
 - **实时**：WebSocket 广播（`daily_brief` 等事件）
-- **数据库**：PostgreSQL
+- **数据库**：SQLite（默认，零配置单文件）或 PostgreSQL（多用户/生产）
 
 ## 快速开始
 

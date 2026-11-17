@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS duban_task (
   last_remind_at TIMESTAMP,
   contract_file_id BIGINT NOT NULL DEFAULT 0,           -- 可选：关联合同文件（与合同线咬合）
   remark VARCHAR(300) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_duban_status_deadline ON duban_task (status, deadline);
 CREATE INDEX IF NOT EXISTS idx_duban_source ON duban_task (source_type);
@@ -29,6 +29,6 @@ CREATE TABLE IF NOT EXISTS duban_log (
   action VARCHAR(20) NOT NULL DEFAULT '',              -- create / remind / done / update
   actor VARCHAR(100) NOT NULL DEFAULT '',
   note VARCHAR(300) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_duban_log_task ON duban_log (task_id, id);

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS dengbao_policy (
   retention_days INTEGER NOT NULL DEFAULT 180,        -- 审计日志留存期限（天），<180 由代码层拒绝
   level VARCHAR(10) NOT NULL DEFAULT '2',             -- 拟保测评级 1/2/3（自查口径，不替代测评）
   updated_by VARCHAR(100) NOT NULL DEFAULT '',
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO dengbao_policy (id, retention_days, level) VALUES (1, 180, '2')
   ON CONFLICT (id) DO NOTHING;
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS audit_log_archive (
   target_id BIGINT DEFAULT 0,
   detail TEXT DEFAULT '',
   ip VARCHAR(64) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),        -- 原日志时间（证据链连续性靠它算）
-  archived_at TIMESTAMP NOT NULL DEFAULT NOW()       -- 归档动作时间（本身也是留痕）
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,        -- 原日志时间（证据链连续性靠它算）
+  archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP       -- 归档动作时间（本身也是留痕）
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_audit_archive_id ON audit_log_archive(id);
 CREATE INDEX IF NOT EXISTS idx_audit_archive_created ON audit_log_archive(created_at);
@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS dengbao_asset (
   remark TEXT DEFAULT '',
   status VARCHAR(20) NOT NULL DEFAULT 'active',        -- active在用/retired下线（下线即证据链终点）
   creator VARCHAR(100) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_dengbao_asset_status ON dengbao_asset(status);
 
@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS dengbao_finding (
   verify_note TEXT DEFAULT '',                         -- 复测结论
   verified_at TIMESTAMP,                               -- 复测时间
   creator VARCHAR(100) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_dengbao_finding_status ON dengbao_finding(status);
 
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS dengbao_finding_log (
   action VARCHAR(40) NOT NULL,             -- create/update/verify/reopen/close
   actor VARCHAR(100) DEFAULT '',
   note TEXT DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_dengbao_finding_log ON dengbao_finding_log(finding_id, id);
 
@@ -93,6 +93,6 @@ CREATE TABLE IF NOT EXISTS dengbao_backup_record (
   status VARCHAR(20) NOT NULL DEFAULT 'success',    -- success/failed/partial
   note TEXT DEFAULT '',
   creator VARCHAR(100) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_dengbao_backup_status ON dengbao_backup_record(status);

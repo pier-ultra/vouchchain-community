@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS payment_plan (
   paid_date VARCHAR(20) DEFAULT '',
   receipt_id BIGINT DEFAULT 0,
   remark TEXT DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_payplan_invoice ON payment_plan(invoice_id) WHERE invoice_id > 0;
 CREATE INDEX IF NOT EXISTS idx_payplan_status ON payment_plan(status);
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS journal_draft (
   status VARCHAR(20) DEFAULT 'draft',         -- draft / confirmed / rejected
   voucher_id BIGINT DEFAULT 0,
   confirmed_by VARCHAR(100) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_journal_invoice ON journal_draft(invoice_id);
 
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS account_mapping (
   subject_code VARCHAR(50) DEFAULT '',
   subject_name VARCHAR(100) DEFAULT '',
   direction VARCHAR(10) DEFAULT 'debit',      -- debit / credit
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_acct_category ON account_mapping(category, direction);
 INSERT INTO account_mapping(category, subject_code, subject_name, direction) VALUES
@@ -63,5 +63,5 @@ CREATE TABLE IF NOT EXISTS bridge_log (
   status VARCHAR(20) DEFAULT '',             -- ok / failed
   detail TEXT DEFAULT '',
   file_path VARCHAR(512) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

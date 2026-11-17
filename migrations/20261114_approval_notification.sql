@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS approval_template (
   id BIGSERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   nodes JSONB NOT NULL DEFAULT '[]',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS approval_instance (
   id BIGSERIAL PRIMARY KEY,
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS approval_instance (
   status VARCHAR(20) NOT NULL DEFAULT 'running',
   current_seq INT NOT NULL DEFAULT 1,
   created_by VARCHAR(100) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS approval_node (
   id BIGSERIAL PRIMARY KEY,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS approval_node (
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   comment TEXT DEFAULT '',
   acted_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_approval_node_inst ON approval_node(instance_id);
 CREATE INDEX IF NOT EXISTS idx_approval_inst_target ON approval_instance(target_id);
@@ -39,6 +39,6 @@ CREATE TABLE IF NOT EXISTS notification (
   title VARCHAR(200) DEFAULT '',
   content TEXT DEFAULT '',
   is_read BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_notification_user ON notification(username);

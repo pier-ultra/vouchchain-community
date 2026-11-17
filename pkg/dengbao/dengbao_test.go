@@ -103,19 +103,27 @@ func TestBlockWhere(t *testing.T) {
 	if BlockWhere(BlockAudit) != "" {
 		t.Fatal("安全审计块=全量，过滤条件应为空")
 	}
-	auth := BlockWhere(BlockAuth)
+	auth := PrefixRegexSQL(authPrefixes)
 	if !strings.HasPrefix(auth, "action ~ '^(") || !strings.HasSuffix(auth, ")'") {
-		t.Fatalf("身份鉴别过滤条件异常：%s", auth)
+		t.Fatalf("PostgreSQL 正则过滤条件异常：%s", auth)
 	}
 	if !strings.Contains(auth, `auth\.`) {
 		t.Fatalf("点号必须转义，避免误匹配：%s", auth)
 	}
-	perm := PermissionWhere()
+	perm := PrefixRegexSQL(permPrefixes)
 	if !strings.Contains(perm, `scim\.user\.`) || !strings.Contains(perm, `rbac\.`) {
 		t.Fatalf("权限变更过滤条件异常：%s", perm)
 	}
-	if PermissionWhere() == BlockWhere(BlockAccess) {
+	if PrefixRegexSQL(permPrefixes) == PrefixRegexSQL(accessPrefixes) {
 		t.Fatal("权限变更口径与访问控制口径不同，不应复用同一串")
+	}
+	// SQLite 方言：无正则算子，改 LIKE 前缀匹配，前缀必须锚定且成组括号
+	like := PrefixLikeSQL(permPrefixes)
+	if !strings.HasPrefix(like, "(") || !strings.HasSuffix(like, ")") {
+		t.Fatalf("SQLite 过滤条件应为括号成组：%s", like)
+	}
+	if !strings.Contains(like, "action LIKE 'scim.user.%'") || !strings.Contains(like, "action LIKE 'rbac.%'") {
+		t.Fatalf("SQLite 前缀过滤条件异常：%s", like)
 	}
 }
 

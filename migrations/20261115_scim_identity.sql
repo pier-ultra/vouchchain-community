@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS scim_user (
   groups TEXT NOT NULL DEFAULT '[]',        -- JSON 数组：所属组的 display / id
   roles TEXT NOT NULL DEFAULT '[]',         -- JSON 数组：同步后实际生效的角色编码
   raw TEXT NOT NULL DEFAULT '{}',           -- 最近一次 SCIM User 文档
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  last_synced_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_synced_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scim_user_username ON scim_user(username);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scim_user_external ON scim_user(external_id) WHERE external_id <> '';
@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS scim_group (
   display_name VARCHAR(200) NOT NULL,
   members TEXT NOT NULL DEFAULT '[]',       -- JSON 数组：成员 value（SCIM user id 或 username）
   raw TEXT NOT NULL DEFAULT '{}',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scim_group_name ON scim_group(display_name);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scim_group_external ON scim_group(external_id) WHERE external_id <> '';
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS scim_role_map (
   group_name VARCHAR(200) NOT NULL,
   role_code VARCHAR(50) NOT NULL,
   note VARCHAR(300) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_scim_role_map_group ON scim_role_map(group_name);
 INSERT INTO scim_role_map(group_name, role_code, note) VALUES
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS scim_sync_log (
   message VARCHAR(500) NOT NULL DEFAULT '',
   actor VARCHAR(100) NOT NULL DEFAULT '',
   payload TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_scim_log_time ON scim_sync_log(created_at DESC);
 

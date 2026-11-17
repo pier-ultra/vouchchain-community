@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS file_entry (
   storage VARCHAR(10) NOT NULL DEFAULT 'local',    -- local/s3
   storage_key VARCHAR(400) NOT NULL,
   uploader VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_file_entry_biz ON file_entry (biz_type, biz_id);
 CREATE INDEX IF NOT EXISTS idx_file_entry_sha ON file_entry (sha256);

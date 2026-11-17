@@ -7,11 +7,13 @@ require (
 	github.com/cloudwego/eino v0.9.23
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
 	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.4
+	github.com/gogf/gf/contrib/drivers/sqlite/v2 v2.10.4
 	github.com/gogf/gf/v2 v2.10.4
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
 	github.com/mark3labs/mcp-go v1.5.0
 	github.com/minio/minio-go/v7 v7.4.1
+	github.com/tjfoc/gmsm v1.4.1
 	github.com/xuri/excelize/v2 v2.11.1
 )
 
@@ -33,6 +35,7 @@ require (
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -63,6 +66,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.9 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -73,7 +77,6 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
-	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
@@ -98,4 +101,8 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	modernc.org/libc v1.22.5 // indirect
+	modernc.org/mathutil v1.5.0 // indirect
+	modernc.org/memory v1.5.0 // indirect
+	modernc.org/sqlite v1.23.1 // indirect
 )

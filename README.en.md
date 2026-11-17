@@ -89,7 +89,7 @@ Mobile app (uni-app H5 preview, 390×844):
 - **Mobile**: uni-app (Vue 3), H5 / WeChat mini-program / App
 - **AI**: Eino LLM Agent (knowledge-base Q&A / brief polish)
 - **Realtime**: WebSocket broadcast (`daily_brief` etc.)
-- **Database**: PostgreSQL
+- **Database**: SQLite (default, zero-config single file) or PostgreSQL (multi-user / production)
 
 ## Quick Start
 

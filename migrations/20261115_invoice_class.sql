@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS invoice_class_rule (
   keywords TEXT NOT NULL DEFAULT '',        -- 逗号分隔关键词
   priority INT NOT NULL DEFAULT 100,        -- 小者先匹配
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

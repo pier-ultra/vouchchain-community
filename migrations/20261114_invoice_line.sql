@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS invoice (
   archive_path VARCHAR(512) DEFAULT '',
   voucher_id BIGINT DEFAULT 0,
   remark TEXT DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_invoice_no ON invoice(invoice_no) WHERE invoice_no <> '';
 CREATE INDEX IF NOT EXISTS idx_invoice_hash ON invoice(file_hash);
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS voucher (
   summary TEXT DEFAULT '',
   amount NUMERIC(14,2) DEFAULT 0,
   voucher_date VARCHAR(20) DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS bank_receipt (
   id BIGSERIAL PRIMARY KEY,
@@ -42,6 +42,6 @@ CREATE TABLE IF NOT EXISTS bank_receipt (
   matched_invoice_id BIGINT DEFAULT 0,
   match_rule VARCHAR(100) DEFAULT '',
   remark TEXT DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_receipt_invoice ON bank_receipt(matched_invoice_id);

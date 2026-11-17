@@ -10,7 +10,8 @@ import (
 	"vouchchain/internal/middleware"
 	"vouchchain/pkg/invoiceclass"
 	"vouchchain/pkg/kb"
-	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2" // 注册 PostgreSQL 驱动（GoFrame 核心不含，需单独引入）
+	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"  // 注册 PostgreSQL 驱动（GoFrame 核心不含，需单独引入）
+	_ "github.com/gogf/gf/contrib/drivers/sqlite/v2" // 注册 SQLite 驱动（纯 Go，无 CGO；默认数据库）
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcfg"

@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS kb_clause (
   source VARCHAR(200) NOT NULL DEFAULT '',
   category VARCHAR(50) NOT NULL DEFAULT '',
   embedding vector(1024),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_kb_clause_embedding ON kb_clause USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS seal_es_config (
   enabled VARCHAR(10) NOT NULL DEFAULT 'off',      -- on/off
   remark VARCHAR(300) NOT NULL DEFAULT '',
   updated_by VARCHAR(100) NOT NULL DEFAULT '',
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO seal_es_config (id, enabled) VALUES (1, 'off') ON CONFLICT (id) DO NOTHING;
 
@@ -35,6 +35,6 @@ CREATE TABLE IF NOT EXISTS seal_es_record (
   evidence_url VARCHAR(500) NOT NULL DEFAULT '',
   raw TEXT NOT NULL DEFAULT '',                    -- 平台原始返回（不含凭据）
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_seal_es_apply ON seal_es_record (apply_id);

@@ -20,7 +20,9 @@ RUN go mod download
 COPY . .
 # 把 Stage1 的 web/dist 拷进构建上下文，供 go build 时旁置
 COPY --from=web /app/dist /src/web/dist
-RUN go build -trimpath -o /out/vouchchain .
+# -ldflags "-s -w" 去符号表+调试信息：单二进制约 36MB（纯 Go sqlite 驱动的合理代价；
+# CGO_ENABLED=0 也是容器内唯一可行的 sqlite 驱动选择，无需 gcc）
+RUN go build -trimpath -ldflags "-s -w" -o /out/vouchchain .
 
 # Stage 3: 运行时（alpine 精简运行时，非 root 用户）
 FROM alpine:3.20

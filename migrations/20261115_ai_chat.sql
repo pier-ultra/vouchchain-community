@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS chat_session (
   id BIGSERIAL PRIMARY KEY,
   username VARCHAR(100) NOT NULL DEFAULT '',
   title VARCHAR(200) NOT NULL DEFAULT '新对话',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS chat_message (
   id BIGSERIAL PRIMARY KEY,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS chat_message (
   role VARCHAR(20) NOT NULL, -- user / assistant
   content TEXT NOT NULL DEFAULT '',
   tool_trace JSONB NOT NULL DEFAULT '[]', -- 本轮工具执行步骤 [{tool,args,summary,ok}]
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_chat_message_session ON chat_message(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_session_user ON chat_session(username);

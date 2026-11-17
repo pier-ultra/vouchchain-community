@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS rbac_role (
   data_scope VARCHAR(20) NOT NULL DEFAULT 'all', -- all / entity / dept / self
   field_mask TEXT NOT NULL DEFAULT '[]',       -- JSON 数组：不可见字段（AG1.2 字段级权限）
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_rbac_role_code ON rbac_role(code);
 
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS rbac_user_role (
   id BIGSERIAL PRIMARY KEY,
   username VARCHAR(100) NOT NULL,
   role_code VARCHAR(50) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_rbac_user_role ON rbac_user_role(username, role_code);
 
@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS compliance_rule (
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   version INT NOT NULL DEFAULT 1,
   doc VARCHAR(1000) NOT NULL DEFAULT '',              -- 说明文档（制度条款出处）
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_compliance_rule_code ON compliance_rule(code);
 
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS compliance_rule_history (
   version INT NOT NULL,
   snapshot TEXT NOT NULL DEFAULT '{}',
   changed_by VARCHAR(100) NOT NULL DEFAULT '',
-  changed_at TIMESTAMP NOT NULL DEFAULT NOW()
+  changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_crh_rule ON compliance_rule_history(rule_id, version);
 
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS compliance_violation (
   owner VARCHAR(100) NOT NULL DEFAULT '',
   handled_by VARCHAR(100) NOT NULL DEFAULT '',
   handled_note VARCHAR(500) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   handled_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cv_status ON compliance_violation(status, created_at DESC);
@@ -111,8 +111,8 @@ CREATE TABLE IF NOT EXISTS md_match_rule (
   fields TEXT NOT NULL DEFAULT '["name","taxNo"]',   -- JSON 数组：参与匹配的字段
   threshold NUMERIC(5,2) NOT NULL DEFAULT 70.00,    -- 相似度阈值
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO md_match_rule(name, md_type, fields, threshold)
 SELECT '供应商默认匹配规则', 'supplier', '["name","taxNo","address","phone"]', 68.00
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS md_duplicate_pair (
   status VARCHAR(20) NOT NULL DEFAULT 'pending',     -- pending / merged / ignored
   handled_by VARCHAR(100) NOT NULL DEFAULT '',
   handled_note VARCHAR(500) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   handled_at TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_md_pair ON md_duplicate_pair(left_id, right_id);
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS md_id_mapping (
   survivor_id BIGINT NOT NULL,
   survivor_uid VARCHAR(80) NOT NULL DEFAULT '',
   pair_id BIGINT NOT NULL DEFAULT 0,
-  merged_at TIMESTAMP NOT NULL DEFAULT NOW()
+  merged_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_md_mapping_old ON md_id_mapping(old_id);
 

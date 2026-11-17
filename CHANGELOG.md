@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### 新增
+- 双数据库兼容：默认 SQLite（零配置单文件、无需装任何数据库），也支持 PostgreSQL（多用户/生产）
+- 冷启动补齐核心表（`migrations/0001_core_tables.sql`）：修复全新数据库启动即中断的问题
+- 一键构建脚本 `scripts/build.sh`（纯 Go sqlite 驱动 + `-trimpath -ldflags "-s -w"`，单二进制约 36MB，无需 gcc）
+
+### 修复
+- 全新数据库（含 PostgreSQL）冷启动会因核心表缺失/建表顺序依赖而中断迁移，导致服务起不来
+- SQLite 方言：`BIGSERIAL`→`INTEGER`、`JSONB`→`TEXT`、pg 正则 `~`→`LIKE` 前缀匹配、pgvector 列与索引降级、`ALTER ADD COLUMN IF NOT EXISTS` 改为列存在性检查
+
 ### 规划中
 - 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
 - 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）

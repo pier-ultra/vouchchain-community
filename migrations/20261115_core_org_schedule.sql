@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS legal_entity (
   entity_type VARCHAR(30) NOT NULL DEFAULT 'subsidiary', -- headquarters / subsidiary / branch
   parent_id BIGINT NOT NULL DEFAULT 0,
   status VARCHAR(20) NOT NULL DEFAULT 'active',          -- active / disabled
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_le_code ON legal_entity(code) WHERE code <> '';
 INSERT INTO legal_entity(code, name, entity_type, parent_id)
@@ -22,7 +22,7 @@ WHERE NOT EXISTS (SELECT 1 FROM legal_entity WHERE code = 'DEFAULT');
 CREATE TABLE IF NOT EXISTS user_context (
   username VARCHAR(100) PRIMARY KEY,
   legal_entity_id BIGINT NOT NULL DEFAULT 0,             -- 0 = 全部主体（未切换）
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ---------- K2 组织树（AK2.1–AK2.5） ----------
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS org_node (
   name VARCHAR(200) NOT NULL DEFAULT '',
   node_type VARCHAR(20) NOT NULL DEFAULT 'dept',         -- dept / position
   sort_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_org_code ON org_node(legal_entity_id, code) WHERE code <> '';
 CREATE INDEX IF NOT EXISTS idx_org_parent ON org_node(legal_entity_id, parent_id);
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS org_member (
   node_id BIGINT NOT NULL,
   legal_entity_id BIGINT NOT NULL DEFAULT 0,
   username VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_org_member ON org_member(node_id, username);
 CREATE INDEX IF NOT EXISTS idx_org_member_entity ON org_member(legal_entity_id, username);
@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS master_data (
   legal_entity_id BIGINT NOT NULL DEFAULT 0,
   attributes JSONB NOT NULL DEFAULT '{}',
   status VARCHAR(20) NOT NULL DEFAULT 'active',         -- active / disabled
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_md_uid ON master_data(md_uid);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_md_type_code ON master_data(md_type, code, legal_entity_id) WHERE code <> '';
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS master_data_link (
   from_id BIGINT NOT NULL,
   to_id BIGINT NOT NULL,
   relation VARCHAR(50) NOT NULL DEFAULT 'belongs_to',   -- belongs_to / contact_of / supplies
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_md_link ON master_data_link(from_id, to_id, relation);
 
@@ -104,8 +104,8 @@ CREATE TABLE IF NOT EXISTS archive_schedule (
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   next_run_at TIMESTAMP,
   last_run_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS archive_schedule_run (
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS archive_schedule_run (
   skipped INT NOT NULL DEFAULT 0,
   cutoff_date VARCHAR(20) NOT NULL DEFAULT '',
   message TEXT NOT NULL DEFAULT '',
-  started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   finished_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_asr_schedule ON archive_schedule_run(schedule_id, id DESC);
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS archive_schedule_item (
   result VARCHAR(20) NOT NULL DEFAULT 'ok',             -- ok / failed / skipped
   message TEXT NOT NULL DEFAULT '',
   archive_path VARCHAR(512) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_asi_run ON archive_schedule_item(run_id);
 
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS archive_exception (
   status VARCHAR(20) NOT NULL DEFAULT 'pending',        -- pending / resolved / ignored
   handled_by VARCHAR(100) NOT NULL DEFAULT '',
   handled_note TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   handled_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_ae_status ON archive_exception(status, id DESC);

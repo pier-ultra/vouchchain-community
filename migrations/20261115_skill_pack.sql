@@ -13,5 +13,5 @@ CREATE TABLE IF NOT EXISTS skill_pack (
   file_id BIGINT NOT NULL DEFAULT 0,          -- 文件中心备份登记（file_entry.id）
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

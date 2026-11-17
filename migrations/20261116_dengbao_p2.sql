@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS dengbao_selfcheck (
   note TEXT NOT NULL DEFAULT '',
   checked_by VARCHAR(100) NOT NULL DEFAULT '',
   checked_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_selfcheck_domain ON dengbao_selfcheck (domain);
 CREATE INDEX IF NOT EXISTS idx_selfcheck_result ON dengbao_selfcheck (result);

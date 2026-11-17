@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS contract_template (
   content TEXT NOT NULL DEFAULT '',                        -- 模板文本，含 {{变量}} 占位符
   variables JSONB NOT NULL DEFAULT '[]',                   -- 变量清单 [{key,label,required,default}]
   remark VARCHAR(300) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_contract_template_cat ON contract_template(category);

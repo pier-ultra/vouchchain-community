@@ -14,6 +14,6 @@ CREATE TABLE IF NOT EXISTS longterm_archive (
   ts_token VARCHAR(64) NOT NULL DEFAULT '',            -- 时间戳存证 token（摘要前缀）
   ts_time VARCHAR(20) NOT NULL DEFAULT '',             -- 登记可信时间
   remark VARCHAR(300) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_longterm_source ON longterm_archive(source_type, source_id, version);

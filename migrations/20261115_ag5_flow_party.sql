@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS isolation_policy (
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   priority INT NOT NULL DEFAULT 0,
   created_by VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_iso_policy_subject ON isolation_policy(subject_type, subject, enabled);
 
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS isolation_violation (
   status VARCHAR(20) NOT NULL DEFAULT 'open',        -- open / resolved / waived
   handled_by VARCHAR(100) NOT NULL DEFAULT '',
   handled_note VARCHAR(500) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   handled_at TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_iso_violation_status ON isolation_violation(status, created_at DESC);
@@ -84,6 +84,6 @@ CREATE TABLE IF NOT EXISTS approval_event (
   to_user VARCHAR(100) NOT NULL DEFAULT '',
   comment TEXT NOT NULL DEFAULT '',
   detail TEXT NOT NULL DEFAULT '{}',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_approval_event_inst ON approval_event(instance_id, id);

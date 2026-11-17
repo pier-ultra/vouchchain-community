@@ -12,6 +12,6 @@ CREATE TABLE IF NOT EXISTS revrec_settlement (
   settled_at DATE NOT NULL,
   remark VARCHAR(200) NOT NULL DEFAULT '',
   creator VARCHAR(100) NOT NULL DEFAULT '',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_revrec_settle_cf ON revrec_settlement (contract_file_id);

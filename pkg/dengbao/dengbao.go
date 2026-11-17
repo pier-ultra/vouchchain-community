@@ -13,6 +13,8 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/xuri/excelize/v2"
+
+	"vouchchain/pkg/dbutil"
 )
 
 // 等保证据链（企业侧，v23 R-C，P2 定位）：
@@ -106,13 +108,32 @@ func BlockWhere(b Block) string {
 // PermissionWhere R-C3：权限变更证据链的 SQL 过滤片段
 func PermissionWhere() string { return prefixRegexSQL(permPrefixes) }
 
-// prefixRegexSQL 把前缀列表拼成 Postgres 正则过滤（^ 锚定，避免 'xrbac.' 误命中）
+// prefixRegexSQL 把前缀列表拼成 WHERE 过滤片段（按数据库方言）：
+//   - PostgreSQL：正则锚定 ^（`action ~ '^(rbac\.|...)'`）
+//   - SQLite：无正则算子，改用 LIKE 前缀匹配（语义等价，同样锚定开头，避免 'xrbac.' 误命中）
 func prefixRegexSQL(prefixes []string) string {
+	if dbutil.IsSQLite() {
+		return PrefixLikeSQL(prefixes)
+	}
+	return PrefixRegexSQL(prefixes)
+}
+
+// PrefixRegexSQL 前缀列表 → PostgreSQL 正则过滤片段（^ 锚定，避免 'xrbac.' 误命中）
+func PrefixRegexSQL(prefixes []string) string {
 	parts := make([]string, 0, len(prefixes))
 	for _, p := range prefixes {
 		parts = append(parts, regexp.QuoteMeta(p))
 	}
 	return "action ~ '^(" + strings.Join(parts, "|") + ")'"
+}
+
+// PrefixLikeSQL 前缀列表 → SQLite LIKE 前缀过滤片段
+func PrefixLikeSQL(prefixes []string) string {
+	conds := make([]string, 0, len(prefixes))
+	for _, p := range prefixes {
+		conds = append(conds, "action LIKE '"+strings.ReplaceAll(p, "'", "''")+"%'")
+	}
+	return "(" + strings.Join(conds, " OR ") + ")"
 }
 
 // ---------- R-C9：证据包 ----------
@@ -164,10 +185,15 @@ func auditEvidence(ctx context.Context, cond string, args []any, username, since
 	all = append(all, limit)
 	// 注意：audit_log.detail 是 jsonb，audit_log_archive.detail 是 TEXT，UNION 两侧必须同型
 	// → 统一 ::text 再合并（下游 recordRows 一律按 String() 取数，文本化不影响口径）。
-	sql := `SELECT 'live' AS scope, id, username, action, target_type, target_id, detail::text AS detail, ip, created_at
+	// sqlite 下两列均为 TEXT，无需 cast。
+	detailExpr := "detail::text"
+	if dbutil.IsSQLite() {
+		detailExpr = "detail"
+	}
+	sql := `SELECT 'live' AS scope, id, username, action, target_type, target_id, ` + detailExpr + ` AS detail, ip, created_at
 	      FROM audit_log` + where + `
 	      UNION ALL
-	      SELECT 'archive' AS scope, id, username, action, target_type, target_id, detail::text AS detail, ip, created_at
+	      SELECT 'archive' AS scope, id, username, action, target_type, target_id, ` + detailExpr + ` AS detail, ip, created_at
 	      FROM audit_log_archive` + where + `
 	      ORDER BY created_at ASC, id ASC
 	      LIMIT ?`
@@ -359,9 +385,13 @@ func ArchiveExpired(ctx context.Context, dryRun bool) (int64, time.Time, error) 
 		}
 		return n.Int64(), cut, nil
 	}
+	detailExpr := "detail::text"
+	if dbutil.IsSQLite() {
+		detailExpr = "detail"
+	}
 	if _, err := g.DB().Exec(ctx, `
 		INSERT INTO audit_log_archive (id, username, action, target_type, target_id, detail, ip, created_at, archived_at)
-		SELECT id, COALESCE(username, ''), action, target_type, target_id, COALESCE(detail::text, ''), COALESCE(ip, ''), created_at, NOW()
+		SELECT id, COALESCE(username, ''), action, target_type, target_id, COALESCE(`+detailExpr+`, ''), COALESCE(ip, ''), created_at, CURRENT_TIMESTAMP
 		FROM audit_log WHERE created_at < ?
 		ON CONFLICT (id) DO NOTHING`, cut); err != nil {
 		return 0, cut, err
