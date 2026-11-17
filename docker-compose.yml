@@ -1,0 +1,46 @@
+# VouchChain 社区版 · Docker Compose 一键启动
+#
+# 用法（项目根目录）：
+#   docker compose up -d --build      # 一键构建并启动
+#   浏览器打开 http://localhost:8000  # dev 演示态免登录（devMode 旁路）
+#
+# 生产/多用户建议（避免明文 demo 密码与 dev 旁路鉴权）：
+#   VOUCHCHAIN_DB_PASSWORD=强密码 APP_AES_KEY=随机串 APP_DEV_MODE=false docker compose up -d --build
+#   并在 config.yaml 配置 Casdoor 证书（SSO 验签）后设 APP_DEV_MODE=false
+#
+# 注意：演示态 devMode=true 任意账号可登录（角色模拟）；生产必须关闭。
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${VOUCHCHAIN_DB_USER:-contracthub}
+      POSTGRES_PASSWORD: ${VOUCHCHAIN_DB_PASSWORD:-contracthub123}
+      POSTGRES_DB: ${VOUCHCHAIN_DB_NAME:-contracthub}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VOUCHCHAIN_DB_USER:-contracthub} -d ${VOUCHCHAIN_DB_NAME:-contracthub}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # DB 连接串经环境变量注入（config.yaml 零改动），db 为 compose 服务名
+      VOUCHCHAIN_DB_LINK: "pgsql:${VOUCHCHAIN_DB_USER:-contracthub}:${VOUCHCHAIN_DB_PASSWORD:-contracthub123}@tcp(db:5432)/${VOUCHCHAIN_DB_NAME:-contracthub}"
+      # 模型 API Key 的库内加密主密钥（未设则 AI/OCR 不可用并告警）
+      APP_AES_KEY: ${APP_AES_KEY:-vouchchain-demo-key-2026}
+      # 生产态：设 APP_DEV_MODE=false 切 Casdoor JWT 验签（需 config 配 CASDOOR_CERTIFICATE）
+      # APP_DEV_MODE: "false"
+    ports:
+      - "${VOUCHCHAIN_PORT:-8000}:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,18 @@
+/* uni-app 全局 SCSS 变量：供页面 <style lang="scss"> 直接使用 */
+$ch-primary: #303133;
+$ch-accent: #409eff;
+$ch-text: #303133;
+$ch-text-muted: #909399;
+$ch-border: #e4e7ed;
+$ch-bg: #f5f6f8;
+$ch-radius: 16rpx;
+
+/* uni-app 内置变量（保持默认，避免组件库样式错乱） */
+$uni-color-primary: #007aff;
+$uni-color-success: #4cd964;
+$uni-color-warning: #f0ad4e;
+$uni-color-error: #dd524d;
+$uni-text-color: #333;
+$uni-text-color-grey: #999;
+$uni-bg-color: #ffffff;
+$uni-border-color: #e5e5e5;

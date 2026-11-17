@@ -1,0 +1,65 @@
+# GoReleaser 标准配置 — vouchchain 跨平台分发
+# 构建矩阵：linux/amd64, linux/arm64, windows/amd64, windows/arm64, darwin/amd64, darwin/arm64
+# 约束：纯静态单二进制（CGO_ENABLED=0，不依赖外部库）；产物仅存本地 dist/。
+#
+# 说明（2026-11-16 定名 vouchchain 后）：
+#  - 项目已是 git 仓库（Gitee origin，tag v0.1.0）。
+#  - GoReleaser 原生只支持 GitHub/GitLab/Gitea 发布，**不原生支持 Gitee**；
+#    release.disable=true 表示只产本地产物、不发远程 Release。
+#  - 实际发版路径：本机用 `gf build` 交叉编译（等价矩阵）→ 手动打包 → 上传 Gitee Releases（绑 tag）。
+#    如需复现归档布局，可：`goreleaser release --snapshot --skip=publish`（先安装 goreleaser）。
+#  - 前端静态资源是运行期依赖（main.go 用 s.AddSearchPath("web/dist") 从运行目录加载），随产物打包。
+
+version: 2
+
+project_name: vouchchain
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./main.go
+    binary: vouchchain
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE*
+      - README*
+      - CHANGELOG*
+      # 前端静态资源是运行期依赖（main.go 用 s.AddSearchPath("web/dist") 从运行目录加载），随产物打包
+      - web/dist/**
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# 产物仅存本地，不发布到 GitHub Release（除非用户明确要求）
+release:
+  disable: true
+
+# 可选 Docker 镜像（任务标注「可选」，此处不默认启用；需要时取消注释并按需填写镜像仓库）
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/your-org/vouchchain:{{ .Version }}"
+#       - "ghcr.io/your-org/vouchchain:latest"
+#     use: buildx

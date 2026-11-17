@@ -1,0 +1,48 @@
+# ---------- 构建产物 ----------
+# Go 单文件二进制（本地构建，运行需 web/dist 旁置）
+ch-local.exe
+*.exe
+*.exe~
+# 工作区本地记忆/日志（不入库）
+.workbuddy/
+# 跨平台构建输出（gf build / goreleaser 产物）
+dist/
+# 纯净社区版发布副本（scripts/make_clean_release.py 生成；发布时用，不入库）
+release/
+# 前端构建输出（web/dist、mobile/dist）
+web/dist/
+mobile/dist/
+
+# ---------- 依赖 ----------
+node_modules/
+web/node_modules/
+mobile/node_modules/
+
+# ---------- 运行期数据（不入库） ----------
+data/
+uploads/
+
+# ---------- 凭据（严禁提交） ----------
+# 数据库密码、Casdoor 证书、SCIM/AI 密钥都在 config/config.yaml，用 config/config.yaml.example 做模板
+config/config.yaml
+.aeskey
+.env
+.env.*
+*.pem
+*.key
+
+# ---------- 会话产物 ----------
+*.log
+
+# ---------- OS / 编辑器 ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 构建生成 / 临时诊断脚本（不入库）
+web/auto-imports.d.ts
+web/components.d.ts
+
+# mobile 预览截图（不入库）
+mobile/docs_prev/

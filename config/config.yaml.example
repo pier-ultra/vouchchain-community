@@ -1,0 +1,35 @@
+# VouchChain 配置模板 —— 复制为 config.yaml 并按环境填写（config.yaml 已 gitignore，严禁提交真实凭据）
+server:
+  address: ":8000"
+  indexFiles: ["index.html"]
+  openapi:
+    path: "/swagger"
+
+database:
+  default:
+    type: "pgsql"
+    # 本地/自托管：填你自己的 PG 连接串（用户名/密码按环境替换，勿提交真实值）
+    link: "pgsql:youruser:yourpassword@tcp(127.0.0.1:5432)/vouchchain"
+    charset: "utf8"
+
+app:
+  # dev 态：跳过验签、注入 dev 用户，可用 X-User-Role 模拟角色。
+  # 生产/交付：设置环境变量 APP_DEV_MODE=false 切 SSO 态（需 CASDOOR_CERTIFICATE 或 CASDOOR_CERT_FILE）。
+  devMode: true
+  casdoor:
+    endpoint: ""
+    clientId: ""
+    clientSecret: ""
+    certificate: ""   # x509 证书/公钥 PEM（Casdoor 应用 Cert 页复制）；也可走环境变量
+    orgName: ""
+    appName: ""
+    audience: ""
+    issuer: ""
+  # SCIM 2.0 身份同步：IdP 推用户/组到 /scim/v2，用独立 Bearer token（不复用用户 JWT）。
+  # 只在部署时通过环境变量 SCIM_TOKEN 设置；此文件与库中都不存明文。未设置时 /scim/v2/* 一律 503。
+  scim:
+    token: ""
+  # Eino 条款审查接入的 OpenAI 兼容端点；密钥走环境变量 AGNES_API_KEY，不落库/不落文件
+  eino:
+    baseUrl: "https://api.agnes-ai.cn/v1"
+    model: "agnes-3.0-flash"

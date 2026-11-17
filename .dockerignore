@@ -1,0 +1,17 @@
+# Docker 构建上下文排除（Dockerfile 在项目根，context=项目根）
+.git
+.gitignore
+node_modules
+web/node_modules
+mobile/node_modules
+web/dist
+mobile/dist
+screenshots
+data
+*.log
+*.exe
+*.md
+docs
+enterprise
+scripts
+release

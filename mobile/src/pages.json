@@ -1,0 +1,83 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": { "navigationBarTitleText": "登录" }
+    },
+    {
+      "path": "pages/home/index",
+      "style": { "navigationBarTitleText": "VouchChain" }
+    },
+    {
+      "path": "pages/approvals/index",
+      "style": { "navigationBarTitleText": "审批待办" }
+    },
+    {
+      "path": "pages/approval-detail/index",
+      "style": { "navigationBarTitleText": "审批详情" }
+    },
+    {
+      "path": "pages/contracts/index",
+      "style": { "navigationBarTitleText": "合同" }
+    },
+    {
+      "path": "pages/contract-detail/index",
+      "style": { "navigationBarTitleText": "合同详情" }
+    },
+    {
+      "path": "pages/chat/index",
+      "style": { "navigationBarTitleText": "AI 助手" }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": { "navigationBarTitleText": "我的" }
+    },
+    {
+      "path": "pages/invoices/index",
+      "style": { "navigationBarTitleText": "发票" }
+    },
+    {
+      "path": "pages/invoice-detail/index",
+      "style": { "navigationBarTitleText": "发票详情" }
+    },
+    {
+      "path": "pages/seals/index",
+      "style": { "navigationBarTitleText": "用印" }
+    },
+    {
+      "path": "pages/dengbao/index",
+      "style": { "navigationBarTitleText": "等保证据" }
+    },
+    {
+      "path": "pages/revrec/index",
+      "style": { "navigationBarTitleText": "收入确认" }
+    },
+    {
+      "path": "pages/duban/index",
+      "style": { "navigationBarTitleText": "公文督办" }
+    }
+  ],
+  "tabBar": {
+    "color": "#909399",
+    "selectedColor": "#303133",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/approvals/index", "text": "审批" },
+      { "pagePath": "pages/contracts/index", "text": "合同" },
+      { "pagePath": "pages/chat/index", "text": "AI助手" },
+      { "pagePath": "pages/mine/index", "text": "我的" }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "VouchChain",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f6f8"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {}
+  }
+}

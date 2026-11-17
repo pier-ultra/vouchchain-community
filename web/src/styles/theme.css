@@ -1,0 +1,255 @@
+/* VouchChain Design System — 双主题（云白 × 墨蓝夜色），靛蓝点缀
+ * 设计原则：克制用色、强排版层次、细边框、大留白、少渐变少阴影。
+ * 主题切换：html.dark class（Element Plus 官方暗色变量 + 本文件墨蓝覆盖）。
+ * 侧栏两种主题下均保持深墨色，作为品牌识别锚点。
+ */
+
+/* ================= 亮色主题（默认） ================= */
+:root {
+  color-scheme: light;
+
+  /* ---- 品牌与表面语义 ---- */
+  --ch-accent: #4f46e5;
+  --ch-accent-strong: #4338ca;
+  --ch-accent-soft: #eef2ff;
+  --ch-ink: #0e1424;
+  --ch-ink-soft: #161e34;
+
+  --ch-canvas: #f6f7fb;        /* 页面底 */
+  --ch-surface: #ffffff;       /* 卡片/面板 */
+  --ch-surface-2: #fafbfd;     /* 次级表面：消息区、列表 */
+  --ch-surface-3: #f0f2f8;     /* 三级表面：hover、步骤条 */
+  --ch-line: #e5e8ef;
+  --ch-line-soft: #ebedf3;
+  --ch-header-bg: rgba(255, 255, 255, 0.86);
+  --ch-user-bubble: #1e293b;
+  --ch-user-bubble-text: #f8fafc;
+  --ch-scrollbar: #d5dae3;
+  --ch-scrollbar-hover: #aab1bf;
+
+  /* ---- 侧栏（亮色：白底，与整体统一） ---- */
+  --ch-sidebar-bg: #ffffff;
+  --ch-sidebar-border: #ebedf3;
+  --ch-sidebar-text: #4b5563;
+  --ch-sidebar-text-hover: #111827;
+  --ch-sidebar-text-active: #4f46e5;
+  --ch-sidebar-hover-bg: #f0f2f8;
+  --ch-sidebar-active-bg: #eef2ff;
+  --ch-sidebar-active-bar: #4f46e5;
+  --ch-sidebar-title: #111827;
+  --ch-sidebar-icon: #9ca3af;
+  --ch-sidebar-topline: transparent;
+
+  /* ---- Element Plus 主色映射 ---- */
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #7670ea;
+  --el-color-primary-light-5: #9b96f0;
+  --el-color-primary-light-7: #c4c0f6;
+  --el-color-primary-light-8: #d9d6fa;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #3f37c9;
+
+  --el-color-success: #0f9d6e;
+  --el-color-warning: #c77c0a;
+  --el-color-danger: #d64545;
+  --el-color-error: #d64545;
+  --el-color-info: #6b7280;
+
+  /* ---- 文字层级 ---- */
+  --el-text-color-primary: #111827;
+  --el-text-color-regular: #374151;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #9ca3af;
+  --el-text-color-disabled: #cbd5e1;
+
+  /* ---- 表面与描边 ---- */
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f6f7fb;
+  --el-bg-color-overlay: #ffffff;
+  --el-fill-color-blank: #ffffff;
+  --el-fill-color-light: #f8fafc;
+  --el-fill-color-lighter: #f4f6fa;
+  --el-fill-color: #f8fafc;
+  --el-border-color: #e5e8ef;
+  --el-border-color-light: #ebedf3;
+  --el-border-color-lighter: #f0f2f6;
+
+  /* ---- 圆角 / 阴影（统一尺度：4 / 8 / 12 / 16） ---- */
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 20px;
+  --el-box-shadow-light: 0 1px 2px rgba(16, 24, 40, 0.03), 0 4px 16px rgba(16, 24, 40, 0.04);
+  --el-box-shadow: 0 4px 12px rgba(16, 24, 40, 0.06), 0 16px 40px rgba(16, 24, 40, 0.08);
+
+  --el-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ================= 深色主题（墨蓝夜色） ================= */
+html.dark {
+  color-scheme: dark;
+
+  --ch-accent: #6d6ff3;
+  --ch-accent-strong: #8b8df6;
+  --ch-accent-soft: #23254e;
+  --ch-ink: #0a0e19;
+  --ch-ink-soft: #101626;
+
+  --ch-canvas: #0b0f1a;
+  --ch-surface: #131a2b;
+  --ch-surface-2: #101626;
+  --ch-surface-3: #1a2338;
+  --ch-line: rgba(148, 163, 199, 0.16);
+  --ch-line-soft: rgba(148, 163, 199, 0.10);
+  --ch-header-bg: rgba(13, 18, 32, 0.85);
+  --ch-user-bubble: #253052;
+  --ch-user-bubble-text: #eef1f8;
+  --ch-scrollbar: #2c3650;
+  --ch-scrollbar-hover: #3d4a6b;
+
+  /* ---- 侧栏（深色：墨黑） ---- */
+  --ch-sidebar-bg: #0a0e19;
+  --ch-sidebar-border: rgba(255, 255, 255, 0.06);
+  --ch-sidebar-text: #9aa4bd;
+  --ch-sidebar-text-hover: #ffffff;
+  --ch-sidebar-text-active: #ffffff;
+  --ch-sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+  --ch-sidebar-active-bg: rgba(99, 102, 241, 0.16);
+  --ch-sidebar-active-bar: #818cf8;
+  --ch-sidebar-title: #f8fafc;
+  --ch-sidebar-icon: #7c87a3;
+  --ch-sidebar-topline: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.5), transparent);
+
+  /* Element Plus 变量：dark 下 light-N 反转为"靠近背景"的深色调 */
+  --el-color-primary: #6d6ff3;
+  --el-color-primary-light-3: #8b8df6;
+  --el-color-primary-light-5: #5c5ed0;
+  --el-color-primary-light-7: #3b3d85;
+  --el-color-primary-light-8: #2e3068;
+  --el-color-primary-light-9: #23254e;
+  --el-color-primary-dark-2: #8b8df6;
+
+  --el-color-success: #34d399;
+  --el-color-warning: #fbbf24;
+  --el-color-danger: #f87171;
+  --el-color-error: #f87171;
+  --el-color-info: #94a3b8;
+
+  --el-text-color-primary: #e6eaf3;
+  --el-text-color-regular: #c2cad9;
+  --el-text-color-secondary: #8f9ab3;
+  --el-text-color-placeholder: #5f6b84;
+  --el-text-color-disabled: #3d4a6b;
+
+  --el-bg-color: #131a2b;
+  --el-bg-color-page: #0b0f1a;
+  --el-bg-color-overlay: #182136;
+  --el-fill-color-blank: #131a2b;
+  --el-fill-color-light: #1a2338;
+  --el-fill-color-lighter: #161e31;
+  --el-fill-color: #1a2338;
+  --el-border-color: rgba(148, 163, 199, 0.16);
+  --el-border-color-light: rgba(148, 163, 199, 0.12);
+  --el-border-color-lighter: rgba(148, 163, 199, 0.08);
+
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.28);
+  --el-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--el-font-family);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  color: var(--el-text-color-primary);
+  background: var(--ch-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.el-main { background: var(--ch-canvas); }
+
+/* 卡片：极细描边 + 几乎看不见的阴影，靠留白和排版撑质感 */
+.el-card {
+  border: 1px solid var(--ch-line-soft);
+  border-radius: 12px;
+  box-shadow: var(--el-box-shadow-light);
+}
+
+/* 表格：清爽表头 + 克制的行分隔（双主题适配） */
+.el-table {
+  --el-table-border-color: var(--ch-line-soft);
+  --el-table-header-bg-color: var(--ch-surface-2);
+  --el-table-header-text-color: var(--el-text-color-secondary);
+  --el-table-row-hover-bg-color: var(--ch-surface-3);
+  --el-table-tr-bg-color: var(--el-bg-color);
+  --el-table-bg-color: var(--el-bg-color);
+  font-size: 13px;
+}
+.el-table th.el-table__cell {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* 按钮：手感略紧实，去掉塑料感 */
+.el-button { font-weight: 500; letter-spacing: 0.01em; }
+.el-button--primary { box-shadow: 0 2px 8px rgba(79, 70, 229, 0.16); }
+.el-button--primary:hover { box-shadow: 0 4px 14px rgba(79, 70, 229, 0.22); }
+html.dark .el-button--primary {
+  box-shadow: 0 2px 10px rgba(109, 111, 243, 0.25);
+}
+
+/* 输入框：聚焦时一圈极淡光环 */
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px var(--el-color-primary-light-8) !important;
+}
+
+.el-tag { border-radius: 5px; }
+
+/* 弹层：深色下补描边与深阴影 */
+html.dark .el-popper.is-light {
+  border: 1px solid var(--ch-line);
+  box-shadow: var(--el-box-shadow);
+}
+
+/* 滚动条：细、淡、不抢眼 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--ch-scrollbar);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ch-scrollbar-hover); background-clip: padding-box; }
+
+::selection { background: #dcd9fb; color: #1e1b4b; }
+html.dark ::selection { background: #3b3d85; color: #eef1f8; }
+
+/* 主题切换过渡：切主题瞬间柔和渐变，避免生硬跳变 */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+}
+
+/* 通用排版工具类（各页面可直接用） */
+.ch-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--el-text-color-placeholder);
+}
+.ch-muted { color: var(--el-text-color-secondary); }
