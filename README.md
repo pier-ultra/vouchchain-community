@@ -8,6 +8,15 @@
 >
 > 红线：不做总账本体 / 报表 / 报税，只做业务侧到会计凭证的桥接；AI 只出建议、须人审入账；未配外部接口时明确失败不谎报。
 
+## 仓库地址
+
+开源免费 · **Apache 2.0**，欢迎 Star / Fork / 提 Issue：
+
+- **GitHub**：[github.com/pier-ultra/vouchchain-community](https://github.com/pier-ultra/vouchchain-community)
+- **Gitee**：[gitee.com/pier-ultra/vouchchain-community](https://gitee.com/pier-ultra/vouchchain-community)
+
+> 国内访问 GitHub 不稳时，可走 **Gitee** 或 `ghproxy` 镜像。
+
 ## 社区版 vs 专业版
 
 | 功能 | 社区版（免费 · Apache 2.0） | 专业版（企业许可） |
