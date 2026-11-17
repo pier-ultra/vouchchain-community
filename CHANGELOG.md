@@ -2,7 +2,7 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 约定，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.3.0] - 2026-11-17
 
 ### 新增
 - 双数据库兼容：默认 SQLite（零配置单文件、无需装任何数据库），也支持 PostgreSQL（多用户/生产）
@@ -12,6 +12,11 @@
 ### 修复
 - 全新数据库（含 PostgreSQL）冷启动会因核心表缺失/建表顺序依赖而中断迁移，导致服务起不来
 - SQLite 方言：`BIGSERIAL`→`INTEGER`、`JSONB`→`TEXT`、pg 正则 `~`→`LIKE` 前缀匹配、pgvector 列与索引降级、`ALTER ADD COLUMN IF NOT EXISTS` 改为列存在性检查
+
+### 发布
+- 跨平台发布包 6 个（v0.3.0）：linux / windows / darwin × amd64 / arm64，均为纯 Go 单二进制（`CGO_ENABLED=0`，无需 gcc、无需装数据库），zip 内含 `config.yaml.example` 与 `web/dist`
+
+## [Unreleased]
 
 ### 规划中
 - 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
