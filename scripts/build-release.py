@@ -73,9 +73,12 @@ def go_env() -> dict:
     go_dir = next((p for p in candidates if (p / ("go.exe" if os.name == "nt" else "go")).exists()), None)
     if go_dir:
         env["PATH"] = str(go_dir) + os.pathsep + env.get("PATH", "")
-    for name, path in (("GOMODCACHE", r"E:\GoCache\mod"), ("GOCACHE", r"E:\GoCache\build")):
-        if path and Path(path).parent.exists():
-            env[name] = path
+    # 本机 Go 缓存加速仅在 Windows 生效；POSIX 上 r"E:\..." 是相对路径，
+    # 会导致 go 因 GOCACHE/GOMODCACHE 非绝对路径而启动即失败
+    if os.name == "nt":
+        for name, path in (("GOMODCACHE", r"E:\GoCache\mod"), ("GOCACHE", r"E:\GoCache\build")):
+            if path and Path(path).parent.exists():
+                env[name] = path
     env.setdefault("GOPROXY", "https://goproxy.cn,direct")
     env["CGO_ENABLED"] = "0"
     env["GOFLAGS"] = "-trimpath"
@@ -111,10 +114,13 @@ def build_binary(os_name: str, arch: str, ver: str) -> Path:
     env = go_env()
     env["GOOS"], env["GOARCH"] = os_name, arch
     print(f"==> 编译 {os_name}/{arch} ({target})", flush=True)
-    subprocess.run(
+    proc = subprocess.run(
         [go_cmd(), "build", "-trimpath", "-ldflags", "-s -w", "-o", str(target), "."],
-        cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
     )
+    if proc.returncode != 0:
+        sys.exit(f"编译失败 {os_name}/{arch}（exit {proc.returncode}）：\n"
+                 + proc.stderr.decode("utf-8", "replace"))
     return target
 
 
