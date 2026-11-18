@@ -2,6 +2,27 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 约定，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增（已合并 main，尚未打 tag）
+- MySQL 兼容（MySQL 8 / TiDB / OceanBase 等 MySQL 兼容库）：`pkg/dbutil` 增加 `IsMySQL`/`IsPG`，迁移层按方言改写 DDL、`ON CONFLICT`→`ON DUPLICATE KEY`、部分索引降级、保留字转义；`kb/search` 在非 PG 库自动降级为关键词模式
+- 跨平台发布包构建脚本 `scripts/build-release.py`（linux/windows/darwin × amd64/arm64，纯 Go `CGO_ENABLED=0`）
+
+### 安全
+- README / README.en 统一到最新 tag v0.3.1；新增醒目的 devMode 公网风险警告与「生产部署必做清单」（关闭 devMode、SSO 验签、替换演示凭据、限制端口暴露）
+
+### 规划中
+- 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
+- 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）
+- 收入确认 / 合同线 P1/P2 补全
+
+## [0.3.1] - 2026-11-18
+
+### 新增
+- 单文件自包含分发：`go:embed web/dist`，二进制不再旁置前端目录
+- 可插拔缓存层 `pkg/cache`（memory / kvrocks），AI 对话上下文注入兼容 DB / KV
+- 移动端 UI 加深：登录页新增服务器地址输入框，appid 定稿
+
 ## [0.3.0] - 2026-11-17
 
 ### 新增
@@ -15,13 +36,6 @@
 
 ### 发布
 - 跨平台发布包 6 个（v0.3.0）：linux / windows / darwin × amd64 / arm64，均为纯 Go 单二进制（`CGO_ENABLED=0`，无需 gcc、无需装数据库），zip 内含 `config.yaml.example` 与 `web/dist`
-
-## [Unreleased]
-
-### 规划中
-- 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
-- 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）
-- 收入确认 / 合同线 P1/P2 补全
 
 ## [0.2.0] - 2026-11-16
 

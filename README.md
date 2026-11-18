@@ -2,11 +2,17 @@
 
 **VouchChain** 是一套面向中小企业财务/合规团队的**合同与履约中枢**：把合同、发票、用印、等保 2.0、收入确认、公文督办等业务侧流程，收敛为「业务侧 → 会计已确认凭证 → 客户既有总账」的可审计桥接。
 
-> 版本：**v0.2.0 社区版**（Apache 2.0）。另有**专业版（企业许可）**，含 3 个高级功能，见下方对比表。
+> 版本：**v0.3.1 社区版**（Apache 2.0，与最新 tag 一致；完整变更见 [CHANGELOG.md](CHANGELOG.md)）。另有**专业版（企业许可）**，含 3 个高级功能，见下方对比表。
 >
 > 定位：**纯开源社区版**，不做 open core 分层、不做 license key、不做功能开关收费。AI 深度条款审查 / 多主体合并报表桥接 / 等保自动测评报告 为专业版；其余核心业务与治理底座全部社区版免费。
 >
 > 红线：不做总账本体 / 报表 / 报税，只做业务侧到会计凭证的桥接；AI 只出建议、须人审入账；未配外部接口时明确失败不谎报。
+
+> ⚠️ **安全警告：不要让默认配置上公网**
+>
+> 示例配置与 `docker compose` 默认 `devMode=true`，这是**本地演示态**：任意账号可登录、可在登录页自选角色、可用请求头 `X-User-Role` 模拟管理员，`/scalar` 接口文档免登录。这是为「一键看效果」设计的，**不是安全配置**。
+>
+> 任何非本机可信环境（公网服务器、云主机、共享内网）部署前，必须先完成下方 [生产部署必做清单](#生产部署必做清单)：关闭 devMode、配置 Casdoor 验签证书、替换演示口令与密钥、限制端口来源。**照抄演示命令裸奔公网 = 业务数据全公开。**
 
 ## 仓库地址
 
@@ -89,7 +95,7 @@ Web 管理台（1440×900）：
 - **移动端**：uni-app（Vue 3），H5 / 微信小程序 / App 三端
 - **AI**：Eino LLM Agent（知识库问答 / 简报润色）
 - **实时**：WebSocket 广播（`daily_brief` 等事件）
-- **数据库**：SQLite（默认，零配置单文件）或 PostgreSQL（多用户/生产）
+- **数据库**：SQLite（默认，零配置单文件，纯 Go 驱动无需 gcc）/ PostgreSQL（多用户/生产，可选 pgvector）/ MySQL 8 及其兼容库（TiDB、OceanBase 等；MySQL 兼容线已在 main，尚未打 tag）
 
 ## 快速开始
 
@@ -135,7 +141,17 @@ VOUCHCHAIN_DB_PASSWORD=强密码 APP_AES_KEY=$(openssl rand -hex 16) \
 docker compose up -d --build
 ```
 
-- **生产鉴权**：演示态 `devMode=true`（任意账号可登录、角色模拟）。生产设 `APP_DEV_MODE=false` + 在 `config/config.yaml` 配 `CASDOOR_CERTIFICATE`（SSO 验签纯本地、不联网）后重启。
+### 生产部署必做清单
+
+默认配置只适合**本机演示**。对外提供服务前，以下 4 项**全部**要做完：
+
+1. **关闭演示鉴权**：设环境变量 `APP_DEV_MODE=false`（或 `config/config.yaml` 的 `app.devMode: false`）。否则任意账号可登录、`X-User-Role` 可自选管理员角色。
+2. **配置 SSO 验签**：在 `config/config.yaml` 填 `CASDOOR_CERTIFICATE`（或 `CASDOOR_CERT_FILE`）。SSO 签名纯本地校验、不联网。
+3. **替换所有演示凭据**：`VOUCHCHAIN_DB_PASSWORD`（数据库）、`APP_AES_KEY`（用 `openssl rand -hex 16` 生成）、Casdoor `clientSecret`。示例值 `contracthub/contracthub123` 仅用于演示。
+4. **限制访问面**：8000 端口只绑定 `127.0.0.1` 或内网；公网必须经反向代理 + HTTPS，且 `/scalar`、`/openapi.json` 一并做访问控制（这两条路由免登录）。
+
+改完执行 `docker compose up -d --build` 重启生效。
+
 - **升级**：`git pull && docker compose up -d --build`（启动期自动跑 `migrations/*.sql` 幂等迁移，无需手工 SQL）。
 
 ## 目录结构

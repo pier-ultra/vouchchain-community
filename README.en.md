@@ -2,11 +2,17 @@
 
 **VouchChain** is a **Contract & Performance Hub** for SMB finance/compliance teams: it converges business-side flows — contracts, invoices, seals, MLPS 2.0 (等保), revenue recognition, official-task follow-ups — into an auditable bridge of "business side → accounting-confirmed vouchers → existing customer ledger".
 
-> Version: **v0.2.0 Community Edition** (Apache 2.0). A **Professional Edition** (commercial license) exists with 3 advanced features; see the comparison below.
+> Version: **v0.3.1 Community Edition** (Apache 2.0, matches the latest tag; see [CHANGELOG.md](CHANGELOG.md) for the full history). A **Professional Edition** (commercial license) exists with 3 advanced features; see the comparison below.
 >
 > Positioning: **pure open-source Community Edition** — no open-core layering, no license key, no feature-flag paywall. AI deep clause review / multi-entity consolidation bridge / automated MLPS report are Professional; everything else, including the governance base, is free in Community.
 >
 > Red lines: no GL core / financial statements / tax filing — only the bridge from business side to accounting vouchers; AI only suggests, humans must review before posting; fail loudly (not silently) when external integrations are unconfigured.
+
+> ⚠️ **Security warning: do not expose the default configuration to the public internet**
+>
+> The sample config and `docker compose` default to `devMode=true`, which is a **local demo mode**: any credentials log in, any role can be selected on the login page, the `X-User-Role` header can impersonate an administrator, and `/scalar` API docs are publicly accessible. This is designed for "one-command preview" — **it is not a security configuration**.
+>
+> Before deploying anywhere beyond your own machine (public server, cloud VM, shared intranet), complete the [Production deployment checklist](#production-deployment-checklist) below: disable devMode, configure the Casdoor verification certificate, replace demo credentials and keys, and restrict port exposure. **Copy-pasting the demo commands onto a public host exposes all business data.**
 
 ## Repositories
 
@@ -89,7 +95,7 @@ Mobile app (uni-app H5 preview, 390×844):
 - **Mobile**: uni-app (Vue 3), H5 / WeChat mini-program / App
 - **AI**: Eino LLM Agent (knowledge-base Q&A / brief polish)
 - **Realtime**: WebSocket broadcast (`daily_brief` etc.)
-- **Database**: SQLite (default, zero-config single file) or PostgreSQL (multi-user / production)
+- **Database**: SQLite (default, zero-config single file, pure-Go driver, no gcc) / PostgreSQL (multi-user / production, optional pgvector) / MySQL 8 and compatible engines (TiDB, OceanBase; MySQL support is on `main`, not yet tagged)
 
 ## Quick Start
 
@@ -135,7 +141,17 @@ VOUCHCHAIN_DB_PASSWORD=strong-password APP_AES_KEY=$(openssl rand -hex 16) \
 docker compose up -d --build
 ```
 
-- **Production auth**: demo mode is `devMode=true` (any credentials log in, roles simulated). For production set `APP_DEV_MODE=false` and configure `CASDOOR_CERTIFICATE` in `config/config.yaml` (SSO signature verified purely locally, no network) then restart.
+### Production deployment checklist
+
+The default configuration is for **local demo only**. Complete **all four** items before exposing the service:
+
+1. **Disable demo auth**: set `APP_DEV_MODE=false` (or `app.devMode: false` in `config/config.yaml`). Otherwise any credentials log in and `X-User-Role` can impersonate an administrator.
+2. **Configure SSO verification**: fill `CASDOOR_CERTIFICATE` (or `CASDOOR_CERT_FILE`) in `config/config.yaml`. Signatures are verified locally, with no network call.
+3. **Replace every demo credential**: `VOUCHCHAIN_DB_PASSWORD` (database), `APP_AES_KEY` (generate with `openssl rand -hex 16`), and the Casdoor `clientSecret`. The sample `contracthub/contracthub123` is demo-only.
+4. **Restrict exposure**: bind port 8000 to `127.0.0.1` or an intranet only; on the public internet use a reverse proxy + HTTPS, and apply access control to `/scalar` and `/openapi.json` too (both routes are unauthenticated).
+
+Then run `docker compose up -d --build` to apply the changes.
+
 - **Upgrade**: `git pull && docker compose up -d --build` (idempotent `migrations/*.sql` run automatically on startup; no manual SQL).
 
 ## Directory Structure

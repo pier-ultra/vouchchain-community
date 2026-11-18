@@ -25,6 +25,12 @@ uploads/
 # ---------- 凭据（严禁提交） ----------
 # 数据库密码、Casdoor 证书、SCIM/AI 密钥都在 config/config.yaml，用 config/config.yaml.example 做模板
 config/config.yaml
+# 任何带环境/用途后缀的本地配置（config.mysqltest.yaml、config.local.yaml、config.prod.yaml 等）一律不入库；
+# 注意 config/config.yaml.example 是模板，不被下列规则匹配，正常跟踪。
+config/config.*.yaml
+config/*.local.yaml
+config/*.test.yaml
+config/*.secret.yaml
 .aeskey
 .env
 .env.*
