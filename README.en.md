@@ -2,7 +2,7 @@
 
 **VouchChain** is a **Contract & Performance Hub** for SMB finance/compliance teams: it converges business-side flows — contracts, invoices, seals, MLPS 2.0 (等保), revenue recognition, official-task follow-ups — into an auditable bridge of "business side → accounting-confirmed vouchers → existing customer ledger".
 
-> Version: **v0.3.1 Community Edition** (Apache 2.0, matches the latest tag; see [CHANGELOG.md](CHANGELOG.md) for the full history). A **Professional Edition** (commercial license) exists with 3 advanced features; see the comparison below.
+> Version: **v0.3.2 Community Edition** (Apache 2.0, matches the latest tag; see [CHANGELOG.md](CHANGELOG.md) for the full history). A **Professional Edition** (commercial license) exists with 3 advanced features; see the comparison below.
 >
 > Positioning: **pure open-source Community Edition** — no open-core layering, no license key, no feature-flag paywall. AI deep clause review / multi-entity consolidation bridge / automated MLPS report are Professional; everything else, including the governance base, is free in Community.
 >

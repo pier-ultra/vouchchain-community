@@ -4,7 +4,14 @@
 
 ## [Unreleased]
 
-### 新增（已合并 main，尚未打 tag）
+### 规划中
+- 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
+- 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）
+- 收入确认 / 合同线 P1/P2 补全
+
+## [0.3.2] - 2026-11-18
+
+### 新增
 - MySQL 兼容（MySQL 8 / TiDB / OceanBase 等 MySQL 兼容库）：`pkg/dbutil` 增加 `IsMySQL`/`IsPG`，迁移层按方言改写 DDL、`ON CONFLICT`→`ON DUPLICATE KEY`、部分索引降级、保留字转义；`kb/search` 在非 PG 库自动降级为关键词模式
 - 跨平台发布包构建脚本 `scripts/build-release.py`（linux/windows/darwin × amd64/arm64，纯 Go `CGO_ENABLED=0`）
 - openGauss 5 兼容（华为，PG 内核）：复用 pgsql 驱动，`SELECT version()` 自动识别方言；迁移层裁剪 pgvector（DO 块/扩展/vector 列/向量索引）、`ADD COLUMN IF NOT EXISTS` 改列存在性检查、`ON CONFLICT` 改 `ON DUPLICATE KEY UPDATE`（非键列 no-op）；知识库无 pgvector 自动降级关键词。openGauss 5.0.0 空库实测 29/29 迁移 + 73 表 + seed 全量 + 11 端点 200 + 写路径落库，SQLite/MySQL 回归无退化
@@ -14,11 +21,6 @@
 
 ### 安全
 - README / README.en 统一到最新 tag v0.3.1；新增醒目的 devMode 公网风险警告与「生产部署必做清单」（关闭 devMode、SSO 验签、替换演示凭据、限制端口暴露）
-
-### 规划中
-- 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
-- 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）
-- 收入确认 / 合同线 P1/P2 补全
 
 ## [0.3.1] - 2026-11-18
 
