@@ -22,6 +22,16 @@ database:
     # 只把 link 换成 openGauss 地址即可；openGauss 无 pgvector，知识库自动降级关键词检索。
     # type: "pgsql"
     # link: "pgsql:gaussdb:yourpassword@tcp(127.0.0.1:15432)/vouchchain"
+    # 换达梦 DM8（Oracle 系，GoFrame dm 驱动，纯 Go）：type 为 dm，schema 用用户名大写。
+    # 达梦无 pgvector，知识库自动降级关键词检索。
+    # type: "dm"
+    # link: "dm:SYSDBA:yourpassword@tcp(127.0.0.1:5236)/SYSDBA?charset=utf8"
+    # 换人大金仓 KingBase（Oracle 兼容模式，GoFrame pgsql 薄驱动）：必须带 extra 关闭"空串当 NULL"，
+    # 否则 DEFAULT '' 会被当 NULL 处理，非空列的 seed 数据会插入失败。
+    # 金仓无 pgvector，知识库自动降级关键词检索。
+    # type: "kingbase"
+    # link: "kingbase:SYSTEM:yourpassword@tcp(127.0.0.1:54321)/TEST"
+    # extra: "ora_input_emptystr_isnull=off"
 
 app:
   # dev 态：跳过验签、注入 dev 用户，可用 X-User-Role 模拟角色。

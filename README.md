@@ -95,7 +95,7 @@ Web 管理台（1440×900）：
 - **移动端**：uni-app（Vue 3），H5 / 微信小程序 / App 三端
 - **AI**：Eino LLM Agent（知识库问答 / 简报润色）
 - **实时**：WebSocket 广播（`daily_brief` 等事件）
-- **数据库**：SQLite（默认，零配置单文件，纯 Go 驱动无需 gcc）/ PostgreSQL（多用户/生产，可选 pgvector）/ MySQL 8 及其兼容库（TiDB、OceanBase 等）/ openGauss 5（华为，PG 内核，走 pgsql 驱动自动识别方言；无 pgvector，知识库降级关键词检索）。后两条国产/兼容线已在 main，尚未打 tag。
+- **数据库**：SQLite（默认，零配置单文件，纯 Go 驱动无需 gcc）/ PostgreSQL（多用户/生产，可选 pgvector）/ MySQL 8 及其兼容库（TiDB、OceanBase 等）/ openGauss 5（华为，PG 内核，走 pgsql 驱动自动识别）/ 达梦 DM8（Oracle 系，GoFrame dm 驱动）/ 人大金仓 KingBase（Oracle 兼容模式，pgsql 薄驱动）。后三条国产线无 pgvector，知识库降级关键词检索；已在 main，尚未打 tag。
 
 ## 快速开始
 

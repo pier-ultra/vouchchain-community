@@ -6,6 +6,7 @@ require (
 	github.com/casdoor/casdoor-go-sdk v1.59.0
 	github.com/cloudwego/eino v0.9.23
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
+	github.com/gogf/gf/contrib/drivers/dm/v2 v2.10.4
 	github.com/gogf/gf/contrib/drivers/mysql/v2 v2.10.4
 	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.4
 	github.com/gogf/gf/contrib/drivers/sqlite/v2 v2.10.4
@@ -19,6 +20,7 @@ require (
 )
 
 require (
+	gitee.com/chunanyong/dm v1.8.23 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
@@ -41,6 +43,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/goph/emperror v0.17.2 // indirect

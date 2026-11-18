@@ -8,14 +8,16 @@ import (
 	"os"
 	"strings"
 
+	_ "github.com/gogf/gf/contrib/drivers/dm/v2"     // 注册达梦 DM8 驱动（纯 Go，Oracle 系方言）
 	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"  // 注册 MySQL 驱动（纯 Go，兼容 TiDB/OceanBase/GreatSQL）
-	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"  // 注册 PostgreSQL 驱动（GoFrame 核心不含，需单独引入）
+	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"  // 注册 PostgreSQL 驱动（含 openGauss / KingBase，按 version() 识别）
 	_ "github.com/gogf/gf/contrib/drivers/sqlite/v2" // 注册 SQLite 驱动（纯 Go，无 CGO；默认数据库）
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcfg"
 	"vouchchain/internal/bootstrap"
 	"vouchchain/internal/controller"
+	_ "vouchchain/internal/drivers/kingbase" // 注册人大金仓驱动（薄包装 pgsql，仅覆盖 TableFields）
 	"vouchchain/internal/mcpserver"
 	"vouchchain/internal/middleware"
 	"vouchchain/pkg/invoiceclass"

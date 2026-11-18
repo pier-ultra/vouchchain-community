@@ -95,7 +95,7 @@ Mobile app (uni-app H5 preview, 390×844):
 - **Mobile**: uni-app (Vue 3), H5 / WeChat mini-program / App
 - **AI**: Eino LLM Agent (knowledge-base Q&A / brief polish)
 - **Realtime**: WebSocket broadcast (`daily_brief` etc.)
-- **Database**: SQLite (default, zero-config single file, pure-Go driver, no gcc) / PostgreSQL (multi-user / production, optional pgvector) / MySQL 8 and compatible engines (TiDB, OceanBase) / openGauss 5 (Huawei, PG kernel, auto-detected via the pgsql driver; no pgvector, KB falls back to keyword search). The last two compatibility lines are on `main`, not yet tagged.
+- **Database**: SQLite (default, zero-config single file, pure-Go driver, no gcc) / PostgreSQL (multi-user / production, optional pgvector) / MySQL 8 and compatible engines (TiDB, OceanBase) / openGauss 5 (Huawei, PG kernel, auto-detected via the pgsql driver) / DM8 (Oracle-family, GoFrame dm driver) / KingBase (Oracle-compatible mode, thin pgsql driver wrapper). The three domestic engines have no pgvector, so KB falls back to keyword search; all are on `main`, not yet tagged.
 
 ## Quick Start
 

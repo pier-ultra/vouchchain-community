@@ -109,10 +109,10 @@ func BlockWhere(b Block) string {
 func PermissionWhere() string { return prefixRegexSQL(permPrefixes) }
 
 // prefixRegexSQL 把前缀列表拼成 WHERE 过滤片段（按数据库方言）：
-//   - PostgreSQL：正则锚定 ^（`action ~ '^(rbac\.|...)'`）
-//   - SQLite / MySQL：无正则算子（MySQL 的 ~ 是按位异或，不是匹配），改用 LIKE 前缀匹配
+//   - PostgreSQL / openGauss / KingBase：正则锚定 ^（`action ~ '^(rbac\.|...)'`）
+//   - SQLite / MySQL / DM：无 ~ 正则算子（MySQL 的 ~ 是按位异或；达梦 Oracle 系用 REGEXP_LIKE），统一 LIKE 前缀匹配
 func prefixRegexSQL(prefixes []string) string {
-	if dbutil.IsSQLite() || dbutil.IsMySQL() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() || dbutil.IsDM() {
 		return PrefixLikeSQL(prefixes)
 	}
 	return PrefixRegexSQL(prefixes)
@@ -185,9 +185,9 @@ func auditEvidence(ctx context.Context, cond string, args []any, username, since
 	all = append(all, limit)
 	// 注意：audit_log.detail 是 jsonb，audit_log_archive.detail 是 TEXT，UNION 两侧必须同型
 	// → 统一 ::text 再合并（下游 recordRows 一律按 String() 取数，文本化不影响口径）。
-	// sqlite / mysql 下 detail 为 TEXT/JSON，无需 cast（mysql 的 ::text 语法不存在）。
+	// sqlite/mysql/dm 下 detail 为 TEXT/JSON/CLOB，无需 cast（无 ::text 语法）。
 	detailExpr := "detail::text"
-	if dbutil.IsSQLite() || dbutil.IsMySQL() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() || dbutil.IsDM() {
 		detailExpr = "detail"
 	}
 	sql := `SELECT 'live' AS scope, id, username, action, target_type, target_id, ` + detailExpr + ` AS detail, ip, created_at
@@ -325,8 +325,16 @@ func SavePolicy(ctx context.Context, retentionDays int, level, by string) (Polic
 	} else if dbutil.IsOpenGauss() {
 		conflict = "ON DUPLICATE KEY UPDATE retention_days = dengbao_policy.retention_days"
 	}
-	_, _ = g.DB().Exec(ctx, `INSERT INTO dengbao_policy (id, retention_days, level, updated_by, updated_at)
-		VALUES (1, ?, ?, ?, ?) `+conflict, retentionDays, level, by, now)
+	// 达梦无 ON CONFLICT；seed 已由迁移保证，跳过此运行时兜底插入。
+	if !dbutil.IsDM() {
+		// 金仓 Oracle 兼容模式下 level 是保留字，列名必须双引号；其他库裸写。
+		levelCol := "level"
+		if dbutil.IsKingBase() {
+			levelCol = `"level"`
+		}
+		_, _ = g.DB().Exec(ctx, `INSERT INTO dengbao_policy (id, retention_days, `+levelCol+`, updated_by, updated_at)
+			VALUES (1, ?, ?, ?, ?) `+conflict, retentionDays, level, by, now)
+	}
 	return GetPolicy(ctx)
 }
 
@@ -394,7 +402,7 @@ func ArchiveExpired(ctx context.Context, dryRun bool) (int64, time.Time, error) 
 		return n.Int64(), cut, nil
 	}
 	detailExpr := "detail::text"
-	if dbutil.IsSQLite() || dbutil.IsMySQL() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() || dbutil.IsDM() {
 		detailExpr = "detail"
 	}
 	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 用 ON DUPLICATE KEY UPDATE id=id（no-op）；
@@ -404,6 +412,21 @@ func ArchiveExpired(ctx context.Context, dryRun bool) (int64, time.Time, error) 
 		conflictClause = "ON DUPLICATE KEY UPDATE id = id"
 	} else if dbutil.IsOpenGauss() {
 		conflictClause = "ON DUPLICATE KEY UPDATE username = audit_log_archive.username"
+	}
+	if dbutil.IsDM() {
+		// 达梦无 INSERT...SELECT ON CONFLICT：先删后插（归档表不存在唯一约束冲突时直接插入）
+		if _, err := g.DB().Exec(ctx, `
+			INSERT INTO audit_log_archive (id, username, action, target_type, target_id, detail, ip, created_at, archived_at)
+			SELECT id, COALESCE(username, ''), action, target_type, target_id, COALESCE(`+detailExpr+`, ''), COALESCE(ip, ''), created_at, CURRENT_TIMESTAMP
+			FROM audit_log WHERE created_at < ?`, cut); err != nil {
+			return 0, cut, err
+		}
+		res, err := g.DB().Exec(ctx, "DELETE FROM audit_log WHERE created_at < ?", cut)
+		if err != nil {
+			return 0, cut, err
+		}
+		n, _ := res.RowsAffected()
+		return n, cut, nil
 	}
 	if _, err := g.DB().Exec(ctx, `
 		INSERT INTO audit_log_archive (id, username, action, target_type, target_id, detail, ip, created_at, archived_at)
@@ -547,9 +570,14 @@ func AssetList(ctx context.Context, status, category string) ([]gdb.Record, erro
 
 // AssetStats R-C1：按类别/级别/状态计数（资产台账一览，供测评口径核对）
 func AssetStats(ctx context.Context) (map[string]any, error) {
+	// 金仓 Oracle 兼容模式下 level 是保留字，列名必须双引号；其他库裸写。
+	levelCol := "level"
+	if dbutil.IsKingBase() {
+		levelCol = `"level"`
+	}
 	rows, err := g.DB().GetAll(ctx, `
-		SELECT category, level, status, COUNT(*) AS n
-		FROM dengbao_asset GROUP BY category, level, status ORDER BY category, level, status`)
+		SELECT category, `+levelCol+`, status, COUNT(*) AS n
+		FROM dengbao_asset GROUP BY category, `+levelCol+`, status ORDER BY category, `+levelCol+`, status`)
 	if err != nil {
 		return nil, err
 	}
@@ -728,9 +756,14 @@ func FindingLog(ctx context.Context, findingID int64, limit int) ([]gdb.Record, 
 
 // FindingStats R-C5：按状态/级别计数（未闭环占比=自查口径的合规缺口）
 func FindingStats(ctx context.Context) (map[string]any, error) {
+	// 金仓 Oracle 兼容模式下 level 是保留字，列名必须双引号；其他库裸写。
+	levelCol := "level"
+	if dbutil.IsKingBase() {
+		levelCol = `"level"`
+	}
 	rows, err := g.DB().GetAll(ctx, `
-		SELECT status, level, COUNT(*) AS n FROM dengbao_finding
-		GROUP BY status, level ORDER BY status, level`)
+		SELECT status, `+levelCol+`, COUNT(*) AS n FROM dengbao_finding
+		GROUP BY status, `+levelCol+` ORDER BY status, `+levelCol+``)
 	if err != nil {
 		return nil, err
 	}
