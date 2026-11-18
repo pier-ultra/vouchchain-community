@@ -20,6 +20,7 @@ import (
 	_ "vouchchain/internal/drivers/kingbase" // 注册人大金仓驱动（薄包装 pgsql，仅覆盖 TableFields）
 	"vouchchain/internal/mcpserver"
 	"vouchchain/internal/middleware"
+	"vouchchain/internal/preflight"
 	"vouchchain/pkg/invoiceclass"
 	"vouchchain/pkg/kb"
 )
@@ -29,6 +30,12 @@ import (
 //
 //go:embed all:web/dist
 var webDistFS embed.FS
+
+// 启动期迁移脚本（migrations/*.sql）内嵌进二进制：裸二进制单文件分发时，
+// 无需在运行目录旁置 migrations/，双击即跑（自动建库 + 迁移）。
+//
+//go:embed all:migrations
+var migrationsFS embed.FS
 
 // serveFrontend 注册前端静态资源服务：优先文件系统 web/dist，缺失时回退内嵌资源（单文件分发）。
 func serveFrontend(s *ghttp.Server) {
@@ -62,6 +69,13 @@ func serveFrontend(s *ghttp.Server) {
 }
 
 func main() {
+	// 零配置双击即跑：当前目录无 config.yml/config.yaml 时自动生成默认配置（SQLite + devMode），
+	// 并预建 data/ 目录（SQLite 默认库路径）。
+	// 注意：config 生成的核心入口在 pkg/cache 的包级 init()（早于 main()，覆盖 middleware 的
+	// 包级 cache.New → g.Cfg().MustGet 读取点）；此处再调用一次仅作幂等兜底。
+	if err := preflight.EnsureDefaultConfig(); err != nil {
+		g.Log().Fatalf(context.Background(), "[config] 初始化默认配置失败：%v", err)
+	}
 	// Docker Compose 一键启动：允许用环境变量 VOUCHCHAIN_DB_LINK 覆盖 DB 连接串（config 文件零改动）
 	// 例：pgsql:contracthub:contracthub123@tcp(db:5432)/contracthub
 	if link := os.Getenv("VOUCHCHAIN_DB_LINK"); link != "" {
@@ -69,8 +83,9 @@ func main() {
 			_ = adapter.Set("database.default.link", link)
 		}
 	}
-	// 启动期自动迁移：migrations/*.sql 按序幂等执行 + schema_migrations 记录（自托管分发不再手工跑 SQL）
-	if err := bootstrap.RunMigrations(); err != nil {
+	// 启动期自动迁移：migrations/*.sql 按序幂等执行 + schema_migrations 记录（自托管分发不再手工跑 SQL）。
+	// 迁移脚本已内嵌（migrationsFS），裸二进制单文件分发无需旁置 migrations/ 目录。
+	if err := bootstrap.RunMigrations(migrationsFS); err != nil {
 		g.Log().Fatalf(context.Background(), "[migrate] 启动迁移失败：%v", err)
 	}
 	// 启动自检：库里有加密密钥但当前进程没有主密钥时，明确告警（不静默降级为"AI 不可用"）

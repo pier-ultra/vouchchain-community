@@ -18,7 +18,18 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
+	"vouchchain/internal/preflight"
 )
+
+// init 确保配置文件存在后再做任何配置读取。
+// 背景：internal/middleware 的包级变量 isoStore = cache.New(...) 在包初始化阶段就执行，
+// 内部调用 g.Cfg().MustGet，而 GoFrame 无配置文件时 MustGet 会 panic。
+// Go 的包级变量初始化先于 main()，所以必须在 cache 包 init() 里先生成 config.yml/data。
+func init() {
+	if err := preflight.EnsureDefaultConfig(); err != nil {
+		panic(err)
+	}
+}
 
 // Store 缓存驱动接口。所有方法均带 ctx，超时由实现自控。
 type Store interface {

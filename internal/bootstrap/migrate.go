@@ -2,9 +2,11 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -710,7 +712,8 @@ func dmHasColumn(ctx context.Context, table, col string) bool {
 }
 
 // RunMigrations 启动期自动迁移：按 migrations/*.sql 文件名顺序执行，schema_migrations 表记录已执行文件。
-func RunMigrations() error {
+// mfs 为迁移脚本来源（main.go 内嵌的 migrationsFS，或开发态自定义 fs.FS）；裸二进制单文件分发无需旁置磁盘目录。
+func RunMigrations(mfs fs.FS) error {
 	// 总超时：SSH 隧道半死时 DB 请求会挂住而不是报错，启动时不能被迁移拖死。
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -725,9 +728,9 @@ func RunMigrations() error {
 	)`); err != nil {
 		return fmt.Errorf("init schema_migrations: %w", err)
 	}
-	entries, err := os.ReadDir("migrations")
+	entries, err := fs.ReadDir(mfs, "migrations")
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err) {
 			return nil
 		}
 		return err
@@ -744,7 +747,7 @@ func RunMigrations() error {
 		if !done.IsEmpty() {
 			continue
 		}
-		body, rerr := os.ReadFile(filepath.Join("migrations", name))
+		body, rerr := fs.ReadFile(mfs, path.Join("migrations", name))
 		if rerr != nil {
 			return rerr
 		}
