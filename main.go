@@ -8,17 +8,18 @@ import (
 	"os"
 	"strings"
 
+	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"  // 注册 MySQL 驱动（纯 Go，兼容 TiDB/OceanBase/GreatSQL）
+	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"  // 注册 PostgreSQL 驱动（GoFrame 核心不含，需单独引入）
+	_ "github.com/gogf/gf/contrib/drivers/sqlite/v2" // 注册 SQLite 驱动（纯 Go，无 CGO；默认数据库）
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gcfg"
 	"vouchchain/internal/bootstrap"
 	"vouchchain/internal/controller"
 	"vouchchain/internal/mcpserver"
 	"vouchchain/internal/middleware"
 	"vouchchain/pkg/invoiceclass"
 	"vouchchain/pkg/kb"
-	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"  // 注册 PostgreSQL 驱动（GoFrame 核心不含，需单独引入）
-	_ "github.com/gogf/gf/contrib/drivers/sqlite/v2" // 注册 SQLite 驱动（纯 Go，无 CGO；默认数据库）
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
-	"github.com/gogf/gf/v2/os/gcfg"
 )
 
 // 前端静态资源（Vue3 + Element Plus 构建产物 web/dist）内嵌进二进制，实现单文件自包含分发。
@@ -181,11 +182,11 @@ func main() {
 		group.POST("/invoices/{id}/archive", controller.InvoiceArchive)
 		group.POST("/invoices/{id}/link-voucher", controller.InvoiceLinkVoucher)
 		group.GET("/invoices/{id}/chain", controller.InvoiceChain)
-		group.GET("/invoices/{id}/chain/export", controller.InvoiceChainExport) // AI8.4 联查导出
-		group.POST("/invoices/red-flush-scan", controller.InvoiceRedFlushScan)  // A2 红冲预警：全量扫描落库
+		group.GET("/invoices/{id}/chain/export", controller.InvoiceChainExport)   // AI8.4 联查导出
+		group.POST("/invoices/red-flush-scan", controller.InvoiceRedFlushScan)    // A2 红冲预警：全量扫描落库
 		group.GET("/invoices/red-flush-alerts", controller.InvoiceRedFlushAlerts) // A2 红冲预警列表
-		group.GET("/archives", controller.ArchiveList)                          // AI5.5 归档检索
-		group.GET("/archives/{id}/download", controller.ArchiveDownload)        // AI5.5 归档调阅
+		group.GET("/archives", controller.ArchiveList)                            // AI5.5 归档检索
+		group.GET("/archives/{id}/download", controller.ArchiveDownload)          // AI5.5 归档调阅
 		group.POST("/vouchers", controller.VoucherCreate)
 		group.GET("/vouchers", controller.VoucherList)
 		group.POST("/receipts", controller.ReceiptCreate)

@@ -18,3 +18,25 @@ func IsSQLite() bool {
 	link := strings.ToLower(strings.TrimSpace(cfg.Link))
 	return strings.HasPrefix(link, "sqlite")
 }
+
+// IsMySQL 判断当前数据库是否为 MySQL（含 MariaDB / TiDB / OceanBase 等 MySQL 协议兼容库）。
+func IsMySQL() bool {
+	cfg := g.DB().GetConfig()
+	t := strings.ToLower(strings.TrimSpace(cfg.Type))
+	if t != "" {
+		return t == "mysql"
+	}
+	link := strings.ToLower(strings.TrimSpace(cfg.Link))
+	return strings.HasPrefix(link, "mysql")
+}
+
+// IsPG 判断当前数据库是否为 PostgreSQL（pg 内核，含 openGauss）。
+func IsPG() bool {
+	cfg := g.DB().GetConfig()
+	t := strings.ToLower(strings.TrimSpace(cfg.Type))
+	if t != "" {
+		return t == "pgsql" || t == "postgres"
+	}
+	link := strings.ToLower(strings.TrimSpace(cfg.Link))
+	return strings.HasPrefix(link, "pgsql") || strings.HasPrefix(link, "postgres")
+}

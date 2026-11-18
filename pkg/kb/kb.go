@@ -206,7 +206,7 @@ func callEmbeddings(ctx context.Context, baseUrl, apiKey, model, path string, te
 	}
 	var out struct {
 		Data []struct {
-			Index   int       `json:"index"`
+			Index     int       `json:"index"`
 			Embedding []float64 `json:"embedding"`
 		} `json:"data"`
 	}
@@ -303,8 +303,8 @@ func SearchClauses(ctx context.Context, query string, topK int) (*SearchResult, 
 	if topK <= 0 || topK > 10 {
 		topK = 4
 	}
-	// 1) 向量检索（pg：pgvector 余弦距离；sqlite 无 pgvector，如实降级为关键词检索）
-	if !dbutil.IsSQLite() {
+	// 1) 向量检索（pg：pgvector 余弦距离；sqlite/mysql 无 pgvector，如实降级为关键词检索）
+	if !dbutil.IsSQLite() && !dbutil.IsMySQL() {
 		vs, err := Embed(ctx, []string{query})
 		if err == nil && len(vs) == 1 {
 			vec, _ := json.Marshal(vs[0])
@@ -426,9 +426,9 @@ func Enrich(ctx context.Context) int {
 				continue
 			}
 			vec, _ := json.Marshal(v)
-			// pg：向量落 pgvector 列；sqlite：embedding 为 TEXT 列，直接存 JSON 文本（无 ::vector cast）
+			// pg：向量落 pgvector 列；sqlite/mysql：embedding 为 TEXT 列，直接存 JSON 文本（无 ::vector cast）
 			var uerr error
-			if dbutil.IsSQLite() {
+			if dbutil.IsSQLite() || dbutil.IsMySQL() {
 				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ? WHERE id = ?", string(vec), ids[i])
 			} else {
 				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ?::vector WHERE id = ?", string(vec), ids[i])
@@ -482,10 +482,11 @@ func ResolveConfig(category string) (apiKey, baseUrl, model string) {
 }
 
 // OCRExtract 调 OCR 服务识别文件，双协议兼容：
-//  - protocol=multipart（默认，旧行为）：自建 RapidOCR，multipart file → {text, pages}
-//  - protocol=openai-chat：OpenAI 兼容多模态（讯飞 xopdeepseekocr / xoppaddleocrv16 / xophunyuanocr），
-//    POST {baseUrl}/chat/completions，content=[{type:text},{type:image_url,image_url:{url:data URI}}]
-//    读 choices[0].message.content。base_url 填 https://maas-api.cn-huabei-1.xf-yun.com/v2
+//   - protocol=multipart（默认，旧行为）：自建 RapidOCR，multipart file → {text, pages}
+//   - protocol=openai-chat：OpenAI 兼容多模态（讯飞 xopdeepseekocr / xoppaddleocrv16 / xophunyuanocr），
+//     POST {baseUrl}/chat/completions，content=[{type:text},{type:image_url,image_url:{url:data URI}}]
+//     读 choices[0].message.content。base_url 填 https://maas-api.cn-huabei-1.xf-yun.com/v2
+//
 // 可用 extra_config.protocol / 环境变量 OCR_PROTOCOL 切换；其余（超时/prompt/路径）同样可配。
 func OCRExtract(ctx context.Context, filename string, data []byte) (string, error) {
 	apiKey, baseUrl, model, extra := resolveCategoryConfigFull("ocr")

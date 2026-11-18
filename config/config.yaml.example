@@ -14,6 +14,10 @@ database:
     # type: "pgsql"
     # link: "pgsql:youruser:yourpassword@tcp(127.0.0.1:5432)/vouchchain"
     # charset: "utf8"
+    # 换 MySQL（含 TiDB / OceanBase / GreatSQL 等 MySQL 兼容国产库）：type 为 mysql，例如：
+    # type: "mysql"
+    # link: "mysql:youruser:yourpassword@tcp(127.0.0.1:3306)/vouchchain?charset=utf8mb4&parseTime=true&loc=Local"
+    # charset: "utf8mb4"
 
 app:
   # dev 态：跳过验签、注入 dev 用户，可用 X-User-Role 模拟角色。

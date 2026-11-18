@@ -164,7 +164,6 @@ CREATE TABLE IF NOT EXISTS payment_plan (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_payplan_status ON payment_plan(status);
 
 -- ---------- AI 分录草稿（人审闭环，不碰总账；建表原在 20261115_p2p_bridge.sql）----------
 CREATE TABLE IF NOT EXISTS journal_draft (
@@ -182,7 +181,6 @@ CREATE TABLE IF NOT EXISTS journal_draft (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_journal_invoice ON journal_draft(invoice_id);
 
 -- ---------- 主数据（建表原在 20261115_core_org_schedule.sql）----------
 CREATE TABLE IF NOT EXISTS master_data (
@@ -198,8 +196,6 @@ CREATE TABLE IF NOT EXISTS master_data (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX IF NOT EXISTS uk_md_uid ON master_data(md_uid);
-CREATE INDEX IF NOT EXISTS idx_md_type ON master_data(md_type, status);
 
 -- ---------- 总账桥接日志（建表原在 20261115_p2p_bridge.sql）----------
 CREATE TABLE IF NOT EXISTS bridge_log (

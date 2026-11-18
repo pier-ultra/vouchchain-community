@@ -110,9 +110,9 @@ func PermissionWhere() string { return prefixRegexSQL(permPrefixes) }
 
 // prefixRegexSQL 把前缀列表拼成 WHERE 过滤片段（按数据库方言）：
 //   - PostgreSQL：正则锚定 ^（`action ~ '^(rbac\.|...)'`）
-//   - SQLite：无正则算子，改用 LIKE 前缀匹配（语义等价，同样锚定开头，避免 'xrbac.' 误命中）
+//   - SQLite / MySQL：无正则算子（MySQL 的 ~ 是按位异或，不是匹配），改用 LIKE 前缀匹配
 func prefixRegexSQL(prefixes []string) string {
-	if dbutil.IsSQLite() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() {
 		return PrefixLikeSQL(prefixes)
 	}
 	return PrefixRegexSQL(prefixes)
@@ -185,9 +185,9 @@ func auditEvidence(ctx context.Context, cond string, args []any, username, since
 	all = append(all, limit)
 	// 注意：audit_log.detail 是 jsonb，audit_log_archive.detail 是 TEXT，UNION 两侧必须同型
 	// → 统一 ::text 再合并（下游 recordRows 一律按 String() 取数，文本化不影响口径）。
-	// sqlite 下两列均为 TEXT，无需 cast。
+	// sqlite / mysql 下 detail 为 TEXT/JSON，无需 cast（mysql 的 ::text 语法不存在）。
 	detailExpr := "detail::text"
-	if dbutil.IsSQLite() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() {
 		detailExpr = "detail"
 	}
 	sql := `SELECT 'live' AS scope, id, username, action, target_type, target_id, ` + detailExpr + ` AS detail, ip, created_at
@@ -317,8 +317,13 @@ func SavePolicy(ctx context.Context, retentionDays int, level, by string) (Polic
 		return Policy{}, err
 	}
 	// 种子行缺失时补一条（迁移已保证存在，这里兜底手工建库的场景）
+	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 语法为 ON DUPLICATE KEY UPDATE（no-op）。
+	conflict := "ON CONFLICT (id) DO NOTHING"
+	if dbutil.IsMySQL() {
+		conflict = "ON DUPLICATE KEY UPDATE id = id"
+	}
 	_, _ = g.DB().Exec(ctx, `INSERT INTO dengbao_policy (id, retention_days, level, updated_by, updated_at)
-		VALUES (1, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`, retentionDays, level, by, now)
+		VALUES (1, ?, ?, ?, ?) `+conflict, retentionDays, level, by, now)
 	return GetPolicy(ctx)
 }
 
@@ -386,14 +391,19 @@ func ArchiveExpired(ctx context.Context, dryRun bool) (int64, time.Time, error) 
 		return n.Int64(), cut, nil
 	}
 	detailExpr := "detail::text"
-	if dbutil.IsSQLite() {
+	if dbutil.IsSQLite() || dbutil.IsMySQL() {
 		detailExpr = "detail"
+	}
+	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 语法为 ON DUPLICATE KEY UPDATE（no-op）。
+	conflictClause := "ON CONFLICT (id) DO NOTHING"
+	if dbutil.IsMySQL() {
+		conflictClause = "ON DUPLICATE KEY UPDATE id = id"
 	}
 	if _, err := g.DB().Exec(ctx, `
 		INSERT INTO audit_log_archive (id, username, action, target_type, target_id, detail, ip, created_at, archived_at)
 		SELECT id, COALESCE(username, ''), action, target_type, target_id, COALESCE(`+detailExpr+`, ''), COALESCE(ip, ''), created_at, CURRENT_TIMESTAMP
 		FROM audit_log WHERE created_at < ?
-		ON CONFLICT (id) DO NOTHING`, cut); err != nil {
+		`+conflictClause, cut); err != nil {
 		return 0, cut, err
 	}
 	res, err := g.DB().Exec(ctx, "DELETE FROM audit_log WHERE created_at < ?", cut)
