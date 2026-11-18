@@ -317,10 +317,13 @@ func SavePolicy(ctx context.Context, retentionDays int, level, by string) (Polic
 		return Policy{}, err
 	}
 	// 种子行缺失时补一条（迁移已保证存在，这里兜底手工建库的场景）
-	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 语法为 ON DUPLICATE KEY UPDATE（no-op）。
+	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 用 ON DUPLICATE KEY UPDATE id=id（no-op）；
+	// openGauss 无 ON CONFLICT 且禁止更新主键，改用非键列自赋值做 no-op。
 	conflict := "ON CONFLICT (id) DO NOTHING"
 	if dbutil.IsMySQL() {
 		conflict = "ON DUPLICATE KEY UPDATE id = id"
+	} else if dbutil.IsOpenGauss() {
+		conflict = "ON DUPLICATE KEY UPDATE retention_days = dengbao_policy.retention_days"
 	}
 	_, _ = g.DB().Exec(ctx, `INSERT INTO dengbao_policy (id, retention_days, level, updated_by, updated_at)
 		VALUES (1, ?, ?, ?, ?) `+conflict, retentionDays, level, by, now)
@@ -394,10 +397,13 @@ func ArchiveExpired(ctx context.Context, dryRun bool) (int64, time.Time, error) 
 	if dbutil.IsSQLite() || dbutil.IsMySQL() {
 		detailExpr = "detail"
 	}
-	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 语法为 ON DUPLICATE KEY UPDATE（no-op）。
+	// pg/sqlite 用 ON CONFLICT DO NOTHING；MySQL 用 ON DUPLICATE KEY UPDATE id=id（no-op）；
+	// openGauss 禁止更新主键，用非键列自赋值做 no-op。
 	conflictClause := "ON CONFLICT (id) DO NOTHING"
 	if dbutil.IsMySQL() {
 		conflictClause = "ON DUPLICATE KEY UPDATE id = id"
+	} else if dbutil.IsOpenGauss() {
+		conflictClause = "ON DUPLICATE KEY UPDATE username = audit_log_archive.username"
 	}
 	if _, err := g.DB().Exec(ctx, `
 		INSERT INTO audit_log_archive (id, username, action, target_type, target_id, detail, ip, created_at, archived_at)

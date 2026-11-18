@@ -18,6 +18,10 @@ database:
     # type: "mysql"
     # link: "mysql:youruser:yourpassword@tcp(127.0.0.1:3306)/vouchchain?charset=utf8mb4&parseTime=true&loc=Local"
     # charset: "utf8mb4"
+    # 换 openGauss（华为，PG 内核）：仍用 type: "pgsql"（走 pgsql 驱动，程序按 version() 自动识别方言），
+    # 只把 link 换成 openGauss 地址即可；openGauss 无 pgvector，知识库自动降级关键词检索。
+    # type: "pgsql"
+    # link: "pgsql:gaussdb:yourpassword@tcp(127.0.0.1:15432)/vouchchain"
 
 app:
   # dev 态：跳过验签、注入 dev 用户，可用 X-User-Role 模拟角色。

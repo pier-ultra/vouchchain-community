@@ -11,6 +11,8 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/glog"
+
+	"vouchchain/pkg/dbutil"
 )
 
 // dbType 返回当前数据库类型（sqlite / pgsql / mysql ...），用于 SQL 方言适配。
@@ -19,11 +21,20 @@ func dbType() string {
 	cfg := g.DB().GetConfig()
 	t := strings.ToLower(strings.TrimSpace(cfg.Type))
 	if t != "" {
+		// 显式声明 openGauss 直接返回；PG 家族在驱动已连时探测 version() 自动识别。
+		if t == "opengauss" || (t == "pgsql" || t == "postgres") && dbutil.IsOpenGauss() {
+			return "opengauss"
+		}
 		return t
 	}
 	link := strings.ToLower(strings.TrimSpace(cfg.Link))
 	for _, prefix := range []string{"sqlite", "pgsql", "postgres", "mysql", "mssql", "dm", "oracle"} {
 		if strings.HasPrefix(link, prefix) {
+			if prefix == "pgsql" || prefix == "postgres" {
+				if dbutil.IsOpenGauss() {
+					return "opengauss"
+				}
+			}
 			return prefix
 		}
 	}
@@ -83,6 +94,25 @@ var (
 	reMySQLDropVectorIndex = regexp.MustCompile(`(?is)\bDROP\s+INDEX\s+IF\s+EXISTS\s+(idx_kb_clause_embedding|idx_\w+_(?:ivfflat|hnsw))\s*;?`)
 	// 纯注释语句（-- 开头整行）：DO 块/向量索引删除后可能只剩注释，无需执行。
 	reMySQLCommentLine = regexp.MustCompile(`(?m)^\s*--[^\n]*$`)
+)
+
+// openGauss 5.x 方言差异（PG 内核但裁剪/改造了若干语法）：
+//   - 无 pgvector：CREATE EXTENSION vector / vector(N) 列 / ivfflat-hnsw 索引 / ::vector cast 全部不可用；
+//   - 无 ON CONFLICT：upsert 只能走 ON DUPLICATE KEY UPDATE（MySQL 兼容语法，openGauss 支持）；
+//   - 无 ADD COLUMN IF NOT EXISTS：需按列存在性检查后裸 ADD COLUMN；
+//   - DO $$ 匿名块、BIGSERIAL、JSONB、部分索引、正则 ~ 均支持，与 PG 一致。
+var (
+	// ON CONFLICT (cols) DO NOTHING → ON DUPLICATE KEY UPDATE <非键列>=VALUES(<非键列>)。
+	// 不能更新主键/唯一键（openGauss 明确报 "don't allow update on primary key or unique key"），
+	// 因此统一取 VALUES 列表里第一个非冲突列做 no-op 自更新；无合适列时整条 INSERT 丢弃（seed 已存在即幂等）。
+	reOGOnConflictNothing = regexp.MustCompile(`(?is)^([\s\S]*?)\s+ON\s+CONFLICT\s*\(([^)]+)\)\s+DO\s+NOTHING\s*$`)
+	// ON CONFLICT (cols) DO UPDATE SET → ON DUPLICATE KEY UPDATE；EXCLUDED.x → VALUES(x)。
+	reOGOnConflictUpdate = regexp.MustCompile(`(?is)ON\s+CONFLICT\s*\([^)]+\)\s+DO\s+UPDATE\s+SET`)
+	reOGExcluded         = regexp.MustCompile(`(?i)\bEXCLUDED\.([a-zA-Z_]\w*)`)
+	// openGauss 列存在性检查：information_schema 的 table_schema 需按 current_schema() 取，不能用 current_database()。
+	reOGAddColIFNE = regexp.MustCompile(`(?i)\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b`)
+	// INSERT INTO <table>(cols) VALUES (...)：提取列名列表，挑选非冲突列做 no-op。
+	reOGInsertCols = regexp.MustCompile(`(?is)^INSERT\s+INTO\s+([a-zA-Z_]\w*)\s*\(([^)]+)\)\s+VALUES\s+([\s\S]+)$`)
 )
 
 // splitStatements 按分号把脚本拆成可独立执行的语句，正确跳过单引号字符串（含 两个连续单引号 转义）
@@ -158,6 +188,18 @@ func dialectize(sql string, dialect string) []string {
 		sql = reAddColIfNotExists.ReplaceAllString(sql, "ADD COLUMN")
 		sql = reVectorIndex.ReplaceAllString(sql, "") // 先删向量索引，避免下面把列型改成 TEXT 后残留 pg 索引语法
 		sql = reVectorType.ReplaceAllString(sql, "TEXT")
+	case "opengauss":
+		// 无 pgvector：与 sqlite/mysql 同样降级（列型 TEXT、删向量索引/扩展/DO 放宽块）。
+		sql = reDOBlock.ReplaceAllString(sql, "")
+		sql = reCreateExt.ReplaceAllString(sql, "")
+		sql = reVectorIndex.ReplaceAllString(sql, "")
+		sql = reVectorType.ReplaceAllString(sql, "TEXT")
+		// 无 ADD COLUMN IF NOT EXISTS → 裸 ADD COLUMN（执行层用 ogHasColumn 补齐幂等）。
+		sql = reOGAddColIFNE.ReplaceAllString(sql, "ADD COLUMN")
+		// upsert：DO UPDATE SET → ON DUPLICATE KEY UPDATE，EXCLUDED.x → VALUES(x)。
+		sql = reOGOnConflictUpdate.ReplaceAllString(sql, "ON DUPLICATE KEY UPDATE")
+		sql = reOGExcluded.ReplaceAllString(sql, "VALUES(${1})")
+		// DO NOTHING → ON DUPLICATE KEY UPDATE <非键列>=VALUES(<非键列>)（逐语句处理，需解析列）。
 	case "mysql":
 		sql = reDOBlock.ReplaceAllString(sql, "")
 		sql = reCreateExt.ReplaceAllString(sql, "")
@@ -202,7 +244,51 @@ func dialectize(sql string, dialect string) []string {
 		}
 		stmts = filtered
 	}
+	if dialect == "opengauss" {
+		filtered := stmts[:0]
+		for _, st := range stmts {
+			// 去掉行注释后为空的空语句跳过（DO 块/向量扩展删除后仅剩注释）。
+			if strings.TrimSpace(reMySQLCommentLine.ReplaceAllString(st, "")) == "" {
+				continue
+			}
+			rewritten := ogRewriteConflictNothing(st)
+			if rewritten != "" {
+				filtered = append(filtered, rewritten)
+			}
+		}
+		stmts = filtered
+	}
 	return stmts
+}
+
+// ogRewriteConflictNothing 把 openGauss 的 INSERT ... ON CONFLICT (cols) DO NOTHING
+// 改写为 ON DUPLICATE KEY UPDATE <非键列>=VALUES(<非键列>)。
+// openGauss 不允许 UPDATE 主键/唯一键，所以从 INSERT 列里挑一个不在冲突列集合中的列做 no-op；
+// 找不到（极端：INSERT 列全是键）时返回空串由调用方跳过——seed 已存在即幂等，跳过不影响语义。
+func ogRewriteConflictNothing(stmt string) string {
+	// 剥掉行注释：迁移脚本常在 INSERT 前留 -- 注释，锚点 ^INSERT 需从真实语句开始。
+	stmt = reMySQLCommentLine.ReplaceAllString(stmt, "")
+	stmt = strings.TrimSpace(stmt)
+	m := reOGOnConflictNothing.FindStringSubmatch(stmt)
+	if m == nil {
+		return stmt
+	}
+	insertPart, conflictCols := m[1], m[2]
+	keySet := make(map[string]bool)
+	for _, c := range strings.Split(conflictCols, ",") {
+		keySet[strings.ToLower(strings.TrimSpace(c))] = true
+	}
+	im := reOGInsertCols.FindStringSubmatch(insertPart)
+	if im == nil {
+		return "" // 无法解析列（如多 Values 的复杂形式），跳过该 seed
+	}
+	for _, c := range strings.Split(im[2], ",") {
+		col := strings.TrimSpace(c)
+		if col != "" && !keySet[strings.ToLower(col)] {
+			return insertPart + " ON DUPLICATE KEY UPDATE " + col + " = VALUES(" + col + ")"
+		}
+	}
+	return ""
 }
 
 // sqliteHasColumn 用 SQLite 的 pragma_table_info 表值函数查某表是否已有该列
@@ -232,6 +318,18 @@ func mysqlHasColumn(ctx context.Context, table, col string) bool {
 	return len(rows) > 0 && rows[0]["n"].Int64() > 0
 }
 
+// ogHasColumn 用 information_schema 查某表是否已有该列（openGauss 无 ADD COLUMN IF NOT EXISTS，
+// 用列存在性检查补齐幂等语义；table_schema 必须是 current_schema()，不是 current_database()）。
+func ogHasColumn(ctx context.Context, table, col string) bool {
+	rows, err := g.DB().GetAll(ctx,
+		"SELECT COUNT(*) AS n FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+		table, col)
+	if err != nil {
+		return false
+	}
+	return len(rows) > 0 && rows[0]["n"].Int64() > 0
+}
+
 // RunMigrations 启动期自动迁移：按 migrations/*.sql 文件名顺序执行，schema_migrations 表记录已执行文件。
 // 所有迁移必须写成幂等（CREATE ... IF NOT EXISTS / ON CONFLICT DO NOTHING），单二进制自托管分发时
 // 用户不需要手工 docker cp 执行 SQL——这是「当收费版做好」的基本盘。
@@ -243,6 +341,7 @@ func RunMigrations() error {
 	defer cancel()
 	isSQLite := dbType() == "sqlite"
 	isMySQL := dbType() == "mysql"
+	isOG := dbType() == "opengauss"
 	dialect := dbType()
 	if _, err := g.DB().Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		file VARCHAR(200) PRIMARY KEY,
@@ -283,6 +382,12 @@ func RunMigrations() error {
 			// MySQL 8.0 的 ADD COLUMN 同样无 IF NOT EXISTS：用 information_schema 列存在性检查补齐。
 			if isMySQL {
 				if m := reAlterAddCol.FindStringSubmatch(stmt); m != nil && mysqlHasColumn(ctx, m[1], m[2]) {
+					continue
+				}
+			}
+			// openGauss 也无 ADD COLUMN IF NOT EXISTS：列已存在则跳过（ogHasColumn 用 current_schema()）。
+			if isOG {
+				if m := reAlterAddCol.FindStringSubmatch(stmt); m != nil && ogHasColumn(ctx, m[1], m[2]) {
 					continue
 				}
 			}

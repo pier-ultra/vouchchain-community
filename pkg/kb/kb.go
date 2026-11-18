@@ -303,8 +303,8 @@ func SearchClauses(ctx context.Context, query string, topK int) (*SearchResult, 
 	if topK <= 0 || topK > 10 {
 		topK = 4
 	}
-	// 1) 向量检索（pg：pgvector 余弦距离；sqlite/mysql 无 pgvector，如实降级为关键词检索）
-	if !dbutil.IsSQLite() && !dbutil.IsMySQL() {
+	// 1) 向量检索（仅 pg：pgvector 余弦距离；sqlite/mysql/openGauss 无 pgvector，如实降级为关键词检索）
+	if !dbutil.IsSQLite() && !dbutil.IsMySQL() && !dbutil.IsOpenGauss() {
 		vs, err := Embed(ctx, []string{query})
 		if err == nil && len(vs) == 1 {
 			vec, _ := json.Marshal(vs[0])
@@ -426,9 +426,9 @@ func Enrich(ctx context.Context) int {
 				continue
 			}
 			vec, _ := json.Marshal(v)
-			// pg：向量落 pgvector 列；sqlite/mysql：embedding 为 TEXT 列，直接存 JSON 文本（无 ::vector cast）
+			// pg：向量落 pgvector 列；sqlite/mysql/openGauss：embedding 为 TEXT 列，直接存 JSON 文本（无 ::vector cast）
 			var uerr error
-			if dbutil.IsSQLite() || dbutil.IsMySQL() {
+			if dbutil.IsSQLite() || dbutil.IsMySQL() || dbutil.IsOpenGauss() {
 				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ? WHERE id = ?", string(vec), ids[i])
 			} else {
 				_, uerr = g.DB().Exec(ctx, "UPDATE kb_clause SET embedding = ?::vector WHERE id = ?", string(vec), ids[i])
