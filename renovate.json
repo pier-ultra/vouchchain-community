@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 9am on monday"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Go 依赖：只升 minor/patch，major 升级需人工评估",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "GitHub Actions 版本升级自动合并（CI 全绿才合）",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "前端依赖：只升补丁版，小版本人工审",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor"],
+      "enabled": false
+    }
+  ]
+}
