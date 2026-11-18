@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 发布
+- 发布产物改为【单文件自包含裸二进制】（vouchchain-<ver>-<os>-<arch>[.exe]），不再打包 ZIP：内嵌前端 `web/dist` 与迁移脚本 `migrations`（`main.go` `go:embed`）；启动时自动生成 `config.yml` 与 `data/` 目录（`internal/preflight`，零配置双击即跑），免去解压/旁置依赖
+- `internal/bootstrap/migrate.go` 迁移改为从内嵌 `fs.FS` 读取（`RunMigrations(mfs fs.FS)`），单文件分发无需旁置 `migrations/` 目录
+- 零配置自举：当前目录无 `config.yml`/`config.yaml` 时自动生成默认配置（SQLite + devMode），并预建 `data/`；已有配置文件则绝不覆盖（Windows/Linux 行为一致）
+
 ### 规划中
 - 移动端离线推送（uni-push 2.0，三端：App 厂商聚合 / 小程序订阅 / H5 WebPush）
 - 每日工作台主动式 Agent 的联网信息收集（需外部搜索 API Key，默认关闭）
