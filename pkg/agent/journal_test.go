@@ -46,9 +46,9 @@ func TestBalancedRejectsBadEntries(t *testing.T) {
 		t.Fatal("平衡分录被误判")
 	}
 	bad := [][]JournalEntry{
-		{{Debit: 100}},                              // 单行
-		{{Debit: 100}, {Credit: 90}},                // 不平
-		{{Debit: 100, Credit: 100}, {Credit: -10}},  // 同行双正 + 负数
+		{{Debit: 100}},                             // 单行
+		{{Debit: 100}, {Credit: 90}},               // 不平
+		{{Debit: 100, Credit: 100}, {Credit: -10}}, // 同行双正 + 负数
 	}
 	for i, b := range bad {
 		if Balanced(b) {

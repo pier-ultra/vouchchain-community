@@ -49,13 +49,13 @@ func OpenApiSpec(r *ghttp.Request) {
 		if strings.Contains(oapiPath, ":") {
 			oapiPath = regexp.MustCompile(`:([^/]+)`).ReplaceAllString(oapiPath, `{$1}`)
 		}
-if _, ok := paths[oapiPath]; !ok {
-		paths[oapiPath] = map[string]any{}
-	}
-	for _, m := range methods {
-		// 每个方法单独构建：requestBody 取决于方法（POST/PUT/PATCH 才有）
-		paths[oapiPath][strings.ToLower(m)] = buildOperation(item, oapiPath, m)
-	}
+		if _, ok := paths[oapiPath]; !ok {
+			paths[oapiPath] = map[string]any{}
+		}
+		for _, m := range methods {
+			// 每个方法单独构建：requestBody 取决于方法（POST/PUT/PATCH 才有）
+			paths[oapiPath][strings.ToLower(m)] = buildOperation(item, oapiPath, m)
+		}
 	}
 
 	spec := map[string]any{
@@ -86,7 +86,7 @@ func buildOperation(item ghttp.RouterItem, oapiPath, method string) map[string]a
 	m := strings.ToLower(method)
 	jsonObj := map[string]any{"type": "object"}
 	op := map[string]any{
-		"summary":     summary,
+		"summary": summary,
 		// operationId 加方法后缀：同一 handler 可能被多个方法引用，避免重复
 		"operationId": operationId(handlerName) + "_" + m,
 		"tags":        []string{tagOf(handlerName, oapiPath)},

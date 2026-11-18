@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"vouchchain/pkg/scimcore"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/pkg/scimcore"
 )
 
 // ---------- /scim/v2/Groups：组成员变化驱动本系统角色绑定 ----------

@@ -3,9 +3,9 @@ package controller
 import (
 	"strings"
 
-	"vouchchain/internal/middleware"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/internal/middleware"
 )
 
 // ---------- /api/scim/*：管理面（走现有 SSO + RBAC，不下发 token 明文） ----------

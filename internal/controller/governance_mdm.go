@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"vouchchain/pkg/mdmatch"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/pkg/mdmatch"
 )
 
 // ---------- 产品② US-G6 MDM 实体解析与去重（AG6.1–AG6.5） ----------

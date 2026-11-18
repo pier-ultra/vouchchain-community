@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"vouchchain/internal/middleware"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/internal/middleware"
 )
 
 // ---------- 产品② US-G1 RBAC 角色与权限配置（AG1.1–AG1.6） ----------

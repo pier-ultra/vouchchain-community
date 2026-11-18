@@ -3,11 +3,11 @@
 //
 // 双驱动（按配置 cache.driver 选择，默认 memory）：
 //   - memory  ：进程内 map + RWMutex + 惰性过期。行为与早期内联缓存完全等价，
-//               是"未配置外部缓存"时的兜底实现，零外部依赖、零回归。
+//     是"未配置外部缓存"时的兜底实现，零外部依赖、零回归。
 //   - kvrocks ：GoFrame gredis 连 Apache Kvrocks（Redis 协议完全兼容），
-//               SET EX / SET NX EX / GET / DEL。用于多实例部署时共享缓存、
-//               保证跨实例一致（角色缓存、隔离策略、简报单飞去重）。
-//               也可连标准 Redis；Kvrocks 与 Redis 走同一 Redis 协议，客户端无差别。
+//     SET EX / SET NX EX / GET / DEL。用于多实例部署时共享缓存、
+//     保证跨实例一致（角色缓存、隔离策略、简报单飞去重）。
+//     也可连标准 Redis；Kvrocks 与 Redis 走同一 Redis 协议，客户端无差别。
 //
 // 值统一为 string，结构体由调用方 JSON 序列化后存取（本包不感知业务类型）。
 package cache

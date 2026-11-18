@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"vouchchain/pkg/scimcore"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/pkg/scimcore"
 )
 
 // ---------- /scim/v2/Users：IdP 推送开户、改资料、改组、离职禁用 ----------

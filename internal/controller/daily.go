@@ -25,7 +25,7 @@ import (
 
 var (
 	briefStore   = cache.New(context.Background())
-	briefDoneKey = "daily:briefdone:"  // + kind + ":" + date
+	briefDoneKey = "daily:briefdone:" // + kind + ":" + date
 	lastBriefKey = "daily:lastbrief:latest"
 )
 

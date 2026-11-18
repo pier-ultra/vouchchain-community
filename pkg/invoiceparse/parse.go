@@ -31,13 +31,13 @@ type Parsed struct {
 
 // 字段别名表（覆盖常见数电票导出标签：中文标签与英文驼峰）
 var fieldAliases = map[string][]string{
-	"invoiceNo": {"发票号码", "InvoiceNo", "Fphm", "invoiceNumber"},
-	"issueDate": {"开票日期", "IssueDate", "IssueTime", "Kprq", "Date"},
-	"buyerName": {"购买方名称", "BuyerName", "GmfMc", "buyerName", "购买方"},
-	"sellerName": {"销售方名称", "SellerName", "XsfMc", "sellerName", "销售方"},
-	"amount":    {"合计金额", "不含税金额", "TotalAmount", "TotalTaxInclusiveAmountExcludeTax", "Hjje", "amount"},
-	"tax":       {"合计税额", "税额", "TotalTaxAmount", "TaxAmount", "Hjse", "tax"},
-	"total":     {"价税合计", "价税合计（大写）", "TotalTaxInclusiveAmount", "Jshj", "total"},
+	"invoiceNo":   {"发票号码", "InvoiceNo", "Fphm", "invoiceNumber"},
+	"issueDate":   {"开票日期", "IssueDate", "IssueTime", "Kprq", "Date"},
+	"buyerName":   {"购买方名称", "BuyerName", "GmfMc", "buyerName", "购买方"},
+	"sellerName":  {"销售方名称", "SellerName", "XsfMc", "sellerName", "销售方"},
+	"amount":      {"合计金额", "不含税金额", "TotalAmount", "TotalTaxInclusiveAmountExcludeTax", "Hjje", "amount"},
+	"tax":         {"合计税额", "税额", "TotalTaxAmount", "TaxAmount", "Hjse", "tax"},
+	"total":       {"价税合计", "价税合计（大写）", "TotalTaxInclusiveAmount", "Jshj", "total"},
 	"invoiceType": {"发票类型", "InvoiceType", "FplxDm", "invoiceType"},
 }
 

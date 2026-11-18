@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"vouchchain/pkg/scimcore"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/pkg/scimcore"
 )
 
 // ---------- SCIM 2.0 协议层（RFC 7644） ----------

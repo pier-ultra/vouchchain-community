@@ -4,11 +4,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
 	"vouchchain/internal/middleware"
 	"vouchchain/pkg/isolate"
 	"vouchchain/pkg/partyprofile"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
 )
 
 // ---------- 产品① US-C8（P1）相对方风险画像（AC8.1–AC8.5） ----------

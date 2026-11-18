@@ -250,8 +250,9 @@ func firstLine(s string) string {
 // 代价：最终回复多一次模型调用；收益：真正的逐 token 输出 + 工具 call 聚合零风险。
 
 // ChatEventKind 流式事件类型
-//   tool  - payload=StepTrace（工具执行状态）
-//   token - payload=string（回复文本增量）
+//
+//	tool  - payload=StepTrace（工具执行状态）
+//	token - payload=string（回复文本增量）
 type ChatEventKind string
 
 const (

@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"vouchchain/internal/middleware"
-	"vouchchain/pkg/scimcore"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"vouchchain/internal/middleware"
+	"vouchchain/pkg/scimcore"
 )
 
 // ---------- SCIM → 本系统 RBAC 的联动 ----------
