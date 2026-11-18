@@ -11,7 +11,7 @@ require (
 	github.com/gogf/gf/contrib/drivers/pgsql/v2 v2.10.4
 	github.com/gogf/gf/contrib/drivers/sqlite/v2 v2.10.4
 	github.com/gogf/gf/v2 v2.10.4
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
 	github.com/mark3labs/mcp-go v1.5.0
 	github.com/minio/minio-go/v7 v7.4.1
