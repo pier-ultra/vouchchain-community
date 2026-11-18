@@ -2,11 +2,12 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
-	"sync"
 	"time"
 
 	"vouchchain/pkg/agent"
+	"vouchchain/pkg/cache"
 	"vouchchain/pkg/daily"
 	"vouchchain/pkg/ws"
 
@@ -18,13 +19,14 @@ import (
 // ---------- 每日工作台：概览 + 晨/晚总结定时推送 ----------
 // 纯规则聚合（pkg/daily），不依赖 AI 模型；AI 增强是后续可选增强。
 // 主动推送走现有 ws hub（在线页面实时可见）；离线场景后续接 uni-push。
+//
+// 单飞去重与"最近一次简报"经 pkg/cache 可插拔层：默认 memory（进程内，行为与早期内联等价）；
+// 配置 cache.driver=kvrocks 时切到外部 Kvrocks，多实例下保证同日只发一次、最近简报跨实例共享。
 
 var (
-	briefMu   sync.Mutex
-	briefDone = map[string]string{} // kind -> date，防同日重复生成
-
-	lastBriefMu sync.Mutex
-	lastBrief   struct{ Kind, Text, At string }
+	briefStore   = cache.New(context.Background())
+	briefDoneKey = "daily:briefdone:"  // + kind + ":" + date
+	lastBriefKey = "daily:lastbrief:latest"
 )
 
 // DailyOverview 聚合概览（本周关注 + 进行中追踪 + 下一步建议 + 最近总结）
@@ -98,7 +100,7 @@ func enhanceBrief(ctx context.Context, kind string, ruleText string) string {
 }
 
 // StartDailyScheduler 定时任务：每日 08:00 晨间简报 / 21:00 晚间总结。
-// 启动 10s 后先扫一次；每 60s 检查；用 briefDone 防同日重复（进程内，单实例自托管）。
+// 启动 10s 后先扫一次；每 60s 检查；用 SetNX 防同日重复（memory 进程内 / kvrocks 跨实例）。
 func StartDailyScheduler() {
 	go func() {
 		time.Sleep(10 * time.Second)
@@ -123,14 +125,12 @@ func scanDaily() {
 
 func runBriefOnce(kind string, now time.Time) {
 	date := now.Format("2006-01-02")
-	briefMu.Lock()
-	if briefDone[kind] == date {
-		briefMu.Unlock()
+	// SetNX：仅当该 kind+date 的 key 不存在才写入并返回 true（要生成）；已存在跳过（防同日重复）。
+	// key 带日期，天然按天隔离；TTL 24h 兜底清理。
+	ok, err := briefStore.SetNX(context.Background(), briefDoneKey+kind+":"+date, date, 24*time.Hour)
+	if err != nil || !ok {
 		return
 	}
-	briefDone[kind] = date
-	briefMu.Unlock()
-
 	text, err := generateBrief(context.Background(), kind)
 	if err != nil {
 		return
@@ -147,16 +147,18 @@ func broadcastBrief(kind, text string) {
 }
 
 func setLastBrief(kind, text string) {
-	lastBriefMu.Lock()
-	defer lastBriefMu.Unlock()
-	lastBrief.Kind, lastBrief.Text, lastBrief.At = kind, text, time.Now().Format("2006-01-02 15:04")
+	b, _ := json.Marshal(g.Map{"kind": kind, "text": text, "at": time.Now().Format("2006-01-02 15:04")})
+	_ = briefStore.Set(context.Background(), lastBriefKey, string(b), 7*24*time.Hour)
 }
 
 func getLastBrief() g.Map {
-	lastBriefMu.Lock()
-	defer lastBriefMu.Unlock()
-	if lastBrief.Text == "" {
+	v, ok, err := briefStore.Get(context.Background(), lastBriefKey)
+	if err != nil || !ok || v == "" {
 		return nil
 	}
-	return g.Map{"kind": lastBrief.Kind, "text": lastBrief.Text, "at": lastBrief.At}
+	var m g.Map
+	if json.Unmarshal([]byte(v), &m) != nil {
+		return nil
+	}
+	return m
 }

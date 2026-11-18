@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,14 +13,91 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	"vouchchain/pkg/agent"
+	"vouchchain/pkg/cache"
 	"vouchchain/pkg/kb"
 	"vouchchain/pkg/skills"
 )
 
 // AI 对话助手 HTTP 层：会话与消息落库，编排走 pkg/agent.ChatTurn。
 // 会话按用户隔离（只能看自己的）；每轮工具步骤作为 tool_trace 存档可回放。
+//
+// 上下文注入（最近 N 条历史）经 pkg/cache 可插拔层做读缓存：DB 是权威主存储，
+// KV 只缓存"最近 chatHistoryLimit 条"用于模型上下文。未配置外部 KV（cache.driver=memory）
+// 时走进程内缓存，miss 仍查库回填，行为与早期直接查库一致；配置 kvrocks 后命中 KV 免查库。
 
 const chatHistoryLimit = 20 // 送入模型的历史条数上限（token 成本与上下文平衡）
+
+const (
+	chatCacheTTL  = 2 * time.Hour // KV 上下文缓存存活（活跃会话足够；过期后重建成本一次查库）
+	chatCacheName = "chat:history:"
+)
+
+var chatStore = cache.New(context.Background())
+
+// chatHistMsg 上下文缓存条目（仅 role/content，tool_trace 不进模型上下文）
+type chatHistMsg struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+func chatHistoryKey(sessionId int64) string { return chatCacheName + strconv.FormatInt(sessionId, 10) }
+
+// loadHistory 读该会话最近 N 条历史供模型上下文。KV hit 直接用；miss 查库回填。
+func loadHistory(ctx context.Context, sessionId int64) ([]*schema.Message, error) {
+	if v, ok, err := chatStore.Get(ctx, chatHistoryKey(sessionId)); err == nil && ok {
+		var msgs []chatHistMsg
+		if json.Unmarshal([]byte(v), &msgs) == nil && len(msgs) > 0 {
+			return toSchemaMessages(msgs), nil
+		}
+	}
+	rows, err := g.DB().Model("chat_message").
+		Where("session_id", sessionId).
+		Order("id desc").Limit(chatHistoryLimit).All()
+	if err != nil {
+		return nil, err
+	}
+	msgs := []chatHistMsg{}
+	for i := len(rows) - 1; i >= 0; i-- {
+		if rows[i]["content"].String() == "" {
+			continue
+		}
+		msgs = append(msgs, chatHistMsg{Role: rows[i]["role"].String(), Content: rows[i]["content"].String()})
+	}
+	if b, err := json.Marshal(msgs); err == nil {
+		_ = chatStore.Set(ctx, chatHistoryKey(sessionId), string(b), chatCacheTTL)
+	}
+	return toSchemaMessages(msgs), nil
+}
+
+// chatHistoryTouch 写消息成功后同步更新 KV 上下文缓存（cache-aside 写；DB 已成功，KV 尽力同步）。
+func chatHistoryTouch(ctx context.Context, sessionId int64, role, content string) {
+	if content == "" {
+		return
+	}
+	msgs := []chatHistMsg{}
+	if v, ok, err := chatStore.Get(ctx, chatHistoryKey(sessionId)); err == nil && ok {
+		_ = json.Unmarshal([]byte(v), &msgs)
+	}
+	msgs = append(msgs, chatHistMsg{Role: role, Content: content})
+	if len(msgs) > chatHistoryLimit {
+		msgs = msgs[len(msgs)-chatHistoryLimit:]
+	}
+	if b, err := json.Marshal(msgs); err == nil {
+		_ = chatStore.Set(ctx, chatHistoryKey(sessionId), string(b), chatCacheTTL)
+	}
+}
+
+func toSchemaMessages(msgs []chatHistMsg) []*schema.Message {
+	out := make([]*schema.Message, 0, len(msgs))
+	for _, m := range msgs {
+		r := schema.User
+		if m.Role == "assistant" {
+			r = schema.Assistant
+		}
+		out = append(out, &schema.Message{Role: r, Content: m.Content})
+	}
+	return out
+}
 
 // ChatSend POST /api/chat {sessionId?, message}
 func ChatSend(r *ghttp.Request) {
@@ -60,28 +138,14 @@ func ChatSend(r *ghttp.Request) {
 		req.SessionId, _ = res.LastInsertId()
 	}
 
-	// 历史消息 → 模型上下文（最近 N 条，按时间正序）
-	rows, err := g.DB().Model("chat_message").
-		Where("session_id", req.SessionId).
-		Order("id desc").Limit(chatHistoryLimit).All()
+	// 历史消息 → 模型上下文（最近 N 条，KV 命中免查库，miss 查库回填）
+	history, err := loadHistory(r.Context(), req.SessionId)
 	if err != nil {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
-	history := []*schema.Message{}
-	for i := len(rows) - 1; i >= 0; i-- {
-		role := schema.User
-		if rows[i]["role"].String() == "assistant" {
-			role = schema.Assistant
-		}
-		content := rows[i]["content"].String()
-		if content == "" {
-			continue
-		}
-		history = append(history, &schema.Message{Role: role, Content: content})
-	}
 
-	// 本轮用户消息先落库
+	// 本轮用户消息先落库（DB 主存储）→ 同步上下文缓存
 	if _, err := g.DB().Model("chat_message").Data(g.Map{
 		"session_id": req.SessionId, "role": "user", "content": req.Message,
 		"created_at": time.Now(),
@@ -89,6 +153,7 @@ func ChatSend(r *ghttp.Request) {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
+	chatHistoryTouch(r.Context(), req.SessionId, "user", req.Message)
 
 	reply, steps, err := agent.ChatTurn(r.Context(), history, req.Message, agent.ChatActor{Username: username, Role: role, SkillsPrompt: skills.MatchPrompt(context.Background(), req.Message)})
 	if err != nil {
@@ -102,7 +167,7 @@ func ChatSend(r *ghttp.Request) {
 		return
 	}
 
-	// 助手回复 + 工具步骤落库
+	// 助手回复 + 工具步骤落库（DB 主存储）→ 同步上下文缓存
 	stepsJson, _ := json.Marshal(steps)
 	if _, err := g.DB().Model("chat_message").Data(g.Map{
 		"session_id": req.SessionId, "role": "assistant", "content": reply,
@@ -111,6 +176,7 @@ func ChatSend(r *ghttp.Request) {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
+	chatHistoryTouch(r.Context(), req.SessionId, "assistant", reply)
 	g.DB().Model("chat_session").Data(g.Map{"updated_at": time.Now()}).Where("id", req.SessionId).Update()
 
 	r.Response.WriteJsonExit(g.Map{"code": 0, "data": g.Map{
@@ -205,6 +271,7 @@ func ChatSessionDelete(r *ghttp.Request) {
 	}
 	g.DB().Model("chat_message").Where("session_id", id).Delete()
 	g.DB().Model("chat_session").Where("id", id).Delete()
+	_ = chatStore.Del(r.Context(), chatHistoryKey(id)) // 清上下文缓存，避免残留旧会话
 	r.Response.WriteJsonExit(g.Map{"code": 0})
 }
 
@@ -258,26 +325,16 @@ func ChatStream(r *ghttp.Request) {
 		req.SessionId, _ = res.LastInsertId()
 	}
 
-	// 历史
-	rows, err := g.DB().Model("chat_message").Where("session_id", req.SessionId).Order("id desc").Limit(chatHistoryLimit).All()
+	// 历史（KV 命中免查库，miss 查库回填）
+	history, err := loadHistory(r.Context(), req.SessionId)
 	if err != nil {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
-	history := []*schema.Message{}
-	for i := len(rows) - 1; i >= 0; i-- {
-		roleM := schema.User
-		if rows[i]["role"].String() == "assistant" {
-			roleM = schema.Assistant
-		}
-		if rows[i]["content"].String() == "" {
-			continue
-		}
-		history = append(history, &schema.Message{Role: roleM, Content: rows[i]["content"].String()})
-	}
 	g.DB().Model("chat_message").Data(g.Map{
 		"session_id": req.SessionId, "role": "user", "content": req.Message, "created_at": time.Now(),
 	}).Insert()
+	chatHistoryTouch(r.Context(), req.SessionId, "user", req.Message)
 
 	// SSE 头
 	r.Response.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
@@ -303,12 +360,13 @@ func ChatStream(r *ghttp.Request) {
 	lastErr = err
 	_ = lastErr
 
-	// 落库 assistant 消息
+	// 落库 assistant 消息（DB 主存储）→ 同步上下文缓存
 	if err == nil && reply != "" {
 		g.DB().Model("chat_message").Data(g.Map{
 			"session_id": req.SessionId, "role": "assistant", "content": reply,
 			"tool_trace": mustJSON(steps), "created_at": time.Now(),
 		}).Insert()
+		chatHistoryTouch(r.Context(), req.SessionId, "assistant", reply)
 	}
 	// 更新会话活跃时间，保持会话列表排序与新会话一致
 	g.DB().Model("chat_session").Data(g.Map{"updated_at": time.Now()}).Where("id", req.SessionId).Update()

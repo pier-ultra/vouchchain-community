@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"regexp"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"vouchchain/pkg/cache"
 	"vouchchain/pkg/isolate"
 	"vouchchain/pkg/orgcore"
 	"github.com/gogf/gf/v2/frame/g"
@@ -19,35 +21,48 @@ import (
 // AG5 是可配置的强制 AND 条件，且优先于可伪造的 X-Legal-Entity-Id 请求头。
 // 两者叠加取交集，不是互相替代。
 
-var isoCache = struct {
-	sync.RWMutex
-	at       time.Time
-	policies []isolate.Policy
-	prepared bool
-}{}
+// 隔离策略经 pkg/cache 可插拔层：默认 memory（进程内，行为与早期内联实现等价）；
+// 配置 cache.driver=kvrocks 时切到外部 Kvrocks，供多实例共享，保证跨实例即时一致。
+var (
+	isoCacheKey = "isolation:policies"
+	isoStore    = cache.New(context.Background())
+	isoLoadMu   sync.Mutex // 防击穿：缓存 miss 时并发只查一次库
+)
 
 // InvalidateIsolationCache 策略增删改后由控制器调用，保证即时生效（AG5.5）
 func InvalidateIsolationCache() {
-	isoCache.Lock()
-	isoCache.at = time.Time{}
-	isoCache.Unlock()
+	_ = isoStore.Del(context.Background(), isoCacheKey)
 }
 
 func isolationPolicies() []isolate.Policy {
-	isoCache.RLock()
-	fresh := time.Since(isoCache.at) < 20*time.Second && isoCache.prepared
-	isoCache.RUnlock()
-	if fresh {
-		isoCache.RLock()
-		out := append([]isolate.Policy{}, isoCache.policies...)
-		isoCache.RUnlock()
-		return out
+	if ps, ok := isoCached(); ok {
+		return ps
 	}
-	isoCache.Lock()
-	defer isoCache.Unlock()
-	if time.Since(isoCache.at) < 20*time.Second && isoCache.prepared {
-		return append([]isolate.Policy{}, isoCache.policies...)
+	isoLoadMu.Lock()
+	defer isoLoadMu.Unlock()
+	if ps, ok := isoCached(); ok { // 双检：等锁期间已被别人回填
+		return ps
 	}
+	list := loadIsolationPolicies()
+	if b, err := json.Marshal(list); err == nil {
+		_ = isoStore.Set(context.Background(), isoCacheKey, string(b), 20*time.Second)
+	}
+	return list
+}
+
+func isoCached() ([]isolate.Policy, bool) {
+	v, ok, err := isoStore.Get(context.Background(), isoCacheKey)
+	if err != nil || !ok {
+		return nil, false
+	}
+	var list []isolate.Policy
+	if json.Unmarshal([]byte(v), &list) != nil {
+		return nil, false
+	}
+	return list, true
+}
+
+func loadIsolationPolicies() []isolate.Policy {
 	list := []isolate.Policy{}
 	rows, err := g.DB().Model("isolation_policy").Order("id asc").All()
 	if err == nil {
@@ -63,8 +78,7 @@ func isolationPolicies() []isolate.Policy {
 			})
 		}
 	}
-	isoCache.policies, isoCache.at, isoCache.prepared = list, time.Now(), true
-	return append([]isolate.Policy{}, list...)
+	return list
 }
 
 // isolationExpand 沿父子树展开允许值；DB 异常时保留原值（不因树读失败而放大权限）。
