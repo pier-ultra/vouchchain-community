@@ -2,13 +2,15 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '../../stores/auth'
-import { getItem } from '../../services/storage'
+import { getItem, setItem } from '../../services/storage'
+import { SERVER_ADDR_KEY, normalizeServerAddr } from '../../services/http'
 import { useTheme } from '../../core/theme'
 
 const { theme } = useTheme()
 
 const auth = useAuthStore()
 const username = ref('admin')
+const serverUrl = ref(getItem(SERVER_ADDR_KEY)) // 首启从本地带出已存地址
 const loading = ref(false)
 
 onLoad(() => {
@@ -22,6 +24,13 @@ async function onSubmit() {
     uni.showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
+  // 校验并保存服务器地址（可留空：H5 走同源 /api；原生 App 必须填）
+  const addr = normalizeServerAddr(serverUrl.value)
+  if (serverUrl.value.trim() && !addr) {
+    uni.showToast({ title: '地址格式错误，需以 http:// 或 https:// 开头', icon: 'none' })
+    return
+  }
+  if (addr) setItem(SERVER_ADDR_KEY, addr)
   if (loading.value) return
   loading.value = true
   try {
@@ -45,10 +54,12 @@ async function onSubmit() {
     <view class="card">
       <view class="label">用户名</view>
       <input class="ipt" v-model="username" placeholder="请输入用户名" placeholder-class="ph" />
+      <view class="label label-gap">服务器地址</view>
+      <input class="ipt" v-model="serverUrl" placeholder="http://192.168.1.100:8000（App 必填，网页可留空）" placeholder-class="ph" />
       <view class="btn" :class="{ disabled: loading }" @click="onSubmit">
         {{ loading ? '登录中…' : '进入' }}
       </view>
-      <view class="tip">开发态任意用户名可进入；生产态走 SSO 单点登录（Casdoor）。</view>
+      <view class="tip">App 端首次需填后端地址并保存；H5 网页版留空走同源。开发态任意用户名可进入；生产态走 SSO 单点登录（Casdoor）。</view>
     </view>
   </view>
 </template>
@@ -93,6 +104,9 @@ async function onSubmit() {
   font-size: 26rpx;
   color: var(--ch-text);
   margin-bottom: 16rpx;
+}
+.label-gap {
+  margin-top: 28rpx;
 }
 .ipt {
   height: 88rpx;

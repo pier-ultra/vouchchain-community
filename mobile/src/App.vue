@@ -26,12 +26,12 @@ page {
   --ch-surface: #ffffff;
   --ch-surface-2: #fafbfd;
   --ch-surface-3: #f0f2f8;
-  --ch-line: #e5e8ef;
-  --ch-line-soft: #ebedf3;
+  --ch-line: #d6dbe6;
+  --ch-line-soft: #d9dde7;
   --ch-ink: #111827;
   --ch-text: #374151;
-  --ch-text-muted: #6b7280;
-  --ch-text-placeholder: #9ca3af;
+  --ch-text-muted: #566070;
+  --ch-text-placeholder: #7a8598;
   --ch-user-bubble: #1e293b;
   --ch-user-bubble-text: #f8fafc;
   --ch-primary: #4f46e5;

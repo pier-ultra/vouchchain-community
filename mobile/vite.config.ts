@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [uni()],
   server: {
     port: 5273,
+    host: '0.0.0.0', // 允许局域网（手机同 WiFi）访问，便于真机预览
     proxy: {
       // 开发态把 /api 转发到本地 Go 后端，与 web/ 的约定一致
       '/api': {

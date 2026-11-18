@@ -1,5 +1,6 @@
 // 跨端请求封装：与 Web 管理台保持同一套约定——
-//   1) 统一走同源 /api（开发态由 vite proxy 转发，生产态由 Go 后端同源提供）
+//   1) 基地址可配置：原生 App 需指向真实后端（如 http://192.168.1.100:8000，存 ch_server）；
+//      H5 同源走相对 /api（开发态由 vite proxy 转发，生产态由 Go 后端同源提供）
 //   2) 请求头带 Bearer token + 角色/用户/主体上下文（SSO 态后端只认验签后的 JWT claims）
 //   3) 响应体即业务体（code/data/message），是否成功由调用方判 code
 //   4) 401 清会话并跳登录
@@ -11,7 +12,21 @@ export interface ApiResult<T = unknown> {
   message?: string
 }
 
-const BASE_URL = '/api'
+// 服务器地址存储键：客户端本地配置（首启在登录页填一次，Android SharedPreferences / iOS NSUserDefaults）
+export const SERVER_ADDR_KEY = 'ch_server'
+
+// 解析请求基地址：有配置用配置（+ /api），否则回退同源 /api（H5）
+export function getBaseUrl(): string {
+  const srv = (getItem(SERVER_ADDR_KEY) || '').trim().replace(/\/+$/, '')
+  return srv ? `${srv}/api` : '/api'
+}
+
+// 归一化用户输入的服务器地址：去首尾空白、去尾部斜杠；非法（非 http/https）返回 ''
+export function normalizeServerAddr(raw: string): string {
+  const s = (raw || '').trim().replace(/\/+$/, '')
+  if (!s) return ''
+  return /^https?:\/\//i.test(s) ? s : ''
+}
 
 function buildHeader(): Record<string, string> {
   const header: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -51,7 +66,7 @@ function withQuery(url: string, params?: Record<string, unknown>): string {
 export function request<T = unknown>(opt: RequestOptions): Promise<ApiResult<T>> {
   return new Promise((resolve, reject) => {
     uni.request({
-      url: BASE_URL + withQuery(opt.url, opt.params),
+      url: getBaseUrl() + withQuery(opt.url, opt.params),
       method: opt.method || 'GET',
       data: opt.data as never,
       header: { ...buildHeader(), ...(opt.header || {}) },
