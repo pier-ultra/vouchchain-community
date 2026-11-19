@@ -21,3 +21,12 @@ jobs:
           git remote add gitee "https://pier-ultra:${GITEE_TOKEN}@gitee.com/pier-ultra/vouchchain-community.git"
           git push gitee main --force
           git push gitee --tags --force
+
+      # 打 v* tag 时，把 GitHub Release 的全部安装包也同步到 Gitee Release
+      - name: 同步 Release 产物到 Gitee
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          VC_REPO_ROOT: ${{ github.workspace }}
+        run: python3 scripts/sync-gitee-release.py "$GITHUB_REF_NAME"
