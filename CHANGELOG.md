@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 新增
+- OceanBase 4.4.2 真机验证（MySQL 兼容线）：走 `type: "mysql"` 零改动通过——29/29 迁移 + 72 表 + seed 全量（account_mapping=10 / kb_clause=12 / invoice_class_rule=7）+ HTTP 冒烟（前端 / openapi.json / account-mappings、invoice-class 规则从 OceanBase 读回数据）；无 pgvector，知识库自动降级关键词模式
+- OceanBase 原生向量能力实测通过（seekdb 内核）：`VECTOR(n)` 列 / `L2_DISTANCE` / `COSINE_DISTANCE` / `NEGATIVE_INNER_PRODUCT` / HNSW 向量索引（`CREATE VECTOR INDEX ... WITH (TYPE=HNSW, DISTANCE=L2)`）/ 索引后 KNN 检索 7/7 全通——后续可在 OceanBase 上接真向量检索替代关键词降级
+- 讯飞 MaaS embedding / rerank 真机实测通过：`xop3qwen8bembedding` 768 维（单条 2.5s、批量 0.3s）、`xop3qwen8breranker` 语义重排正确（query「夏天最好吃的水果」→ 西瓜 0.246 > 荔枝 0.032 > 草莓 0.007）；与 20261116_kb_embedding_dim_flexible 的动态维度设计对齐，可直接配到模型配置页 embedding / rerank 类别
+- 全库 schema 注释元数据：新增 `migrations/20261119_schema_comments.sql`（72 表 / 749 字段全覆盖），启动迁移后由 `internal/bootstrap/comments.go` 幂等同步——pgsql/opengauss/dm/kingbase 原生 `COMMENT ON`（保留字列名自动加引号），MySQL 系转 `ALTER TABLE ... COMMENT` 与按 information_schema 比对后的 `MODIFY COLUMN ... COMMENT`（已一致零 DDL），sqlite 跳过
+- 迁移中断恢复（MySQL 线）：服务被 kill/断电后 `CREATE [UNIQUE] INDEX` 已提交但 `schema_migrations` 未记录，重跑报 1061「Duplicate key name」导致迁移失败——迁移层对 MySQL/TiDB/OceanBase 增加该错误幂等跳过（OceanBase 真机验证时实测发现并修复）
+
 ### 发布
 - 发布产物改为【单文件自包含裸二进制】（vouchchain-<ver>-<os>-<arch>[.exe]），不再打包 ZIP：内嵌前端 `web/dist` 与迁移脚本 `migrations`（`main.go` `go:embed`）；启动时自动生成 `config.yml` 与 `data/` 目录（`internal/preflight`，零配置双击即跑），免去解压/旁置依赖
 - `internal/bootstrap/migrate.go` 迁移改为从内嵌 `fs.FS` 读取（`RunMigrations(mfs fs.FS)`），单文件分发无需旁置 `migrations/` 目录

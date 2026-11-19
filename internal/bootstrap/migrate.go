@@ -740,6 +740,9 @@ func RunMigrations(mfs fs.FS) error {
 		if e.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".sql") {
 			continue
 		}
+		if name == schemaCommentsFile {
+			continue // 注释元数据不走标准迁移循环，由末尾 applySchemaComments 幂等同步
+		}
 		done, qerr := g.DB().Model("schema_migrations").Where("file", name).One()
 		if qerr != nil {
 			return fmt.Errorf("check migration %s: %w", name, qerr)
@@ -779,6 +782,12 @@ func RunMigrations(mfs fs.FS) error {
 				if isDM && strings.Contains(xerr.Error(), "此列列表已索引") {
 					continue
 				}
+				// MySQL 线（MySQL/TiDB/OceanBase）中断恢复：CREATE [UNIQUE] INDEX 无 IF NOT EXISTS，
+				// 服务被 kill/断电后 DDL 已提交但 schema_migrations 未记录，重跑报 1061
+				// 「Duplicate key name」；索引已在即目标达成，跳过。
+				if isMySQL && strings.Contains(xerr.Error(), "Duplicate key name") {
+					continue
+				}
 				return fmt.Errorf("apply migration %s (stmt #%d): %w [SQL: %.300s]", name, idx+1, xerr, stmt)
 			}
 		}
@@ -787,5 +796,7 @@ func RunMigrations(mfs fs.FS) error {
 		}
 		glog.Infof(ctx, "[migrate] applied %s", name)
 	}
+	// 迁移结构就绪后，幂等同步表/字段注释元数据（各数据库 information_schema 层）。
+	applySchemaComments(ctx, dialect, mfs)
 	return nil
 }
