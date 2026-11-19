@@ -52,10 +52,18 @@
       "path": "pages/revrec/index",
       "style": { "navigationBarTitleText": "收入确认" }
     },
-    {
-      "path": "pages/duban/index",
-      "style": { "navigationBarTitleText": "公文督办" }
-    }
+{
+    "path": "pages/duban/index",
+    "style": { "navigationBarTitleText": "公文督办" }
+  },
+  {
+    "path": "pages/contract-generate/index",
+    "style": { "navigationBarTitleText": "AI 生成合同" }
+  },
+  {
+    "path": "pages/contract-template/index",
+    "style": { "navigationBarTitleText": "合同模板" }
+  }
   ],
   "tabBar": {
     "color": "#6b7280",

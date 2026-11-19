@@ -27,6 +27,8 @@ interface Entry {
 const entries: Entry[] = [
   { key: 'approvals', label: '审批待办', icon: '审', color: '#4f46e5', url: '/pages/approvals/index', tab: true },
   { key: 'contracts', label: '合同', icon: '合', color: '#0f9d6e', url: '/pages/contracts/index', tab: true },
+  { key: 'contract-generate', label: 'AI 生成合同', icon: 'AI', color: '#7c3aed', url: '/pages/contract-generate/index' },
+  { key: 'contract-template', label: '合同模板', icon: '模', color: '#06b6d4', url: '/pages/contract-template/index' },
   { key: 'invoices', label: '发票', icon: '票', color: '#c77c0a', url: '/pages/invoices/index' },
   { key: 'seals', label: '用印', icon: '印', color: '#d64545', url: '/pages/seals/index' },
   { key: 'dengbao', label: '等保证据', icon: '等', color: '#6b7280', url: '/pages/dengbao/index' },

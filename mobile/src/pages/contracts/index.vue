@@ -13,6 +13,14 @@ const loading = ref(false)
 const total = ref(0)
 const filter = ref<'all' | 'active' | 'approved' | 'draft' | 'pending'>('all')
 
+function goGenerate() {
+  uni.navigateTo({ url: '/pages/contract-generate/index' })
+}
+
+function goTemplate() {
+  uni.navigateTo({ url: '/pages/contract-template/index' })
+}
+
 const FILTERS: { key: typeof filter.value; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'active', label: '生效中' },
@@ -85,6 +93,11 @@ function openDetail(c: Row) {
       <view class="btn" @click="onSearch">搜索</view>
     </view>
 
+    <view class="actions">
+      <view class="action-btn primary" @click="goGenerate">AI 生成合同</view>
+      <view class="action-btn secondary" @click="goTemplate">合同模板</view>
+    </view>
+
     <view v-if="!loading" class="muted total">共 {{ total }} 份合同</view>
     <view v-if="loading" class="empty">加载中…</view>
     <view v-else-if="!list.length" class="empty">暂无合同</view>
@@ -155,6 +168,30 @@ function openDetail(c: Row) {
 }
 .total {
   margin-bottom: 16rpx;
+}
+.actions {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 0 4rpx;
+}
+.action-btn {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 500;
+  border-radius: 12rpx;
+}
+.action-btn.primary {
+  background: var(--ch-accent);
+  color: #fff;
+}
+.action-btn.secondary {
+  background: var(--ch-surface);
+  color: var(--ch-accent);
+  border: 1rpx solid var(--ch-accent);
 }
 .row {
   display: flex;

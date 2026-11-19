@@ -112,6 +112,34 @@ export const api = {
   revrecConfirm: (id: number) => http.post<ApiResult<{ draftId: number }>>(`/revrec/confirm/${id}`),
   revrecLedger: () => http.get<ApiResult<Row[]>>('/revrec/ledger'),
 
+  // ---------- AI 合同生成 ----------
+  // POST /api/contracts/generate {contractType, partyA, partyB, subject, amount, term, notes} + 可选文件
+  // 返回 {id: number} 合同文件任务ID
+  generateContract: (data: {
+    contractType: string
+    partyA: string
+    partyB: string
+    subject: string
+    amount: string
+    term: string
+    notes: string
+  }, file?: File) => {
+    const form = new FormData()
+    Object.entries(data).forEach(([k, v]) => form.append(k, v))
+    if (file) form.append('file', file)
+    return http.post<ApiResult<{ id: number }>>('/contracts/generate', form, {
+      timeout: 180000,
+      // multipart 不设 Content-Type，由框架自动带 boundary
+      headers: { 'Content-Type': undefined as any },
+    })
+  },
+
+  // ---------- 合同模板库（移动端只读 + 套打） ----------
+  contractTemplates: (params?: { keyword?: string }) =>
+    http.get<ApiResult<{ id: number; name: string; category: string; content: string; remark: string; variables: Array<{ key: string; label: string; required: boolean; default: string }>; varKeys: string[] }[]>>('/contract-templates', { params }),
+  contractTemplateRender: (id: number, values: Record<string, string>) =>
+    http.post<ApiResult<{ content: string; missing: string[] }>>(`/contract-templates/render`, { templateId: id, values }),
+
   // ---------- AI 对话（非流式 /chat，三端通吃；SSE 流式仅 Web 用） ----------
   // 后端无 sessionId 时自动新建会话；code=2 表示未配置 AI 模型
   chatSend: (sessionId: number | undefined, message: string) =>

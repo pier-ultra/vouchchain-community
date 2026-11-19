@@ -86,7 +86,15 @@
                 <span class="step-summary">{{ s.summary }}</span>
               </div>
             </div>
-            <div class="bubble">{{ m.content }}</div>
+            <div class="bubble">
+              {{ m.content }}
+              <div v-if="m.role === 'assistant'" class="bubble-actions">
+                <button class="action-btn" :class="{ playing: speakingMsgId === m.id }" @click="speakText(m.content, m.id)" @contextmenu.prevent="stopSpeak" :aria-label="speakingMsgId === m.id ? '停止播报' : '语音播报'">
+                  <Monitor v-if="speakingMsgId !== m.id" />
+                  <Stopwatch v-else />
+                </button>
+              </div>
+            </div>
           </div>
           <div v-if="m.role === 'user'" class="msg-avatar me">我</div>
         </div>
@@ -99,15 +107,21 @@
       </div>
 
       <div class="chat-input">
-        <el-input
-          v-model="draft"
-          type="textarea"
-          :rows="3"
-          resize="none"
-          placeholder="用一句话说要查什么 / 做什么，Enter 发送，Shift+Enter 换行"
-          @keydown.enter.exact.prevent="send"
-          :disabled="pending"
-        />
+        <div class="input-wrap">
+          <button class="voice-btn" :class="{ recording: recognizing }" @click="recognizing ? stopSTT() : startSTT()" :disabled="pending" :aria-label="recognizing ? '停止语音输入' : '开始语音输入'">
+            <Mic v-if="!recognizing" />
+            <Stopwatch v-else />
+          </button>
+          <el-input
+            v-model="draft"
+            type="textarea"
+            :rows="3"
+            resize="none"
+            placeholder="用一句话说要查什么 / 做什么，Enter 发送，Shift+Enter 换行"
+            @keydown.enter.exact.prevent="send"
+            :disabled="pending || recognizing"
+          />
+        </div>
         <el-button type="primary" :loading="pending" @click="send">发送</el-button>
       </div>
     </el-main>
@@ -115,8 +129,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { Plus, Edit, Delete, Mic, Monitor, Stopwatch } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { api, type ChatSessionRow, type ChatMessageRow, type ChatStep, type McpStatus } from '../api'
 
@@ -127,6 +141,132 @@ const draft = ref('')
 const pending = ref(false)
 const bodyRef = ref<HTMLElement | null>(null)
 const mcp = ref<McpStatus | null>(null)
+
+// ========== 语音识别 (STT) ==========
+const recognizing = ref(false)
+let recognition: any = null
+
+// 兼容 H5 / 微信小程序 / App 的语音识别初始化
+function initSpeechRecognition() {
+  if (!recognition) {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition()
+      recognition.lang = 'zh-CN'
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.maxAlternatives = 1
+
+      recognition.onresult = (event: any) => {
+        let transcript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript
+        }
+        draft.value = transcript
+      }
+
+      recognition.onerror = (event: any) => {
+        console.warn('[STT] 识别错误:', event.error)
+        if (event.error === 'no-speech' || event.error === 'audio-capture') {
+          // 静默重试
+          setTimeout(() => { if (recognizing.value) recognition.start() }, 300)
+        } else if (event.error === 'not-allowed') {
+          ElMessage.warning('请授权麦克风权限')
+          stopSTT()
+        }
+      }
+
+      recognition.onend = () => {
+        if (recognizing.value) {
+          // 连续识别：自动重启
+          setTimeout(() => { if (recognizing.value) recognition.start() }, 100)
+        }
+      }
+    }
+  }
+}
+
+// 开始语音输入
+function startSTT() {
+  if (recognizing.value) return
+
+  if (!recognition) initSpeechRecognition()
+  if (recognition) {
+    try {
+      recognition.start()
+      recognizing.value = true
+    } catch (e) {
+      ElMessage.error('启动语音识别失败')
+    }
+  } else {
+    ElMessage.error('当前浏览器不支持语音识别')
+  }
+}
+
+// 停止语音输入
+function stopSTT() {
+  if (!recognizing.value) return
+  recognizing.value = false
+
+  if (recognition) {
+    try { recognition.stop() } catch { }
+  }
+}
+
+// ========== 语音合成 (TTS) ==========
+let speechSynthesis: any = null
+let currentUtterance: any = null
+const speakingMsgId = ref<number | null>(null)
+
+// 初始化 TTS
+function initSpeechSynthesis() {
+  if (!speechSynthesis) {
+    speechSynthesis = (window as any).speechSynthesis
+  }
+}
+
+// 朗读文本
+function speakText(text: string, msgId: number) {
+  if (!text.trim()) return
+
+  // 如果正在朗读同一条，则停止
+  if (speakingMsgId.value === msgId) {
+    stopSpeak()
+    return
+  }
+
+  stopSpeak() // 停止其它正在播放的
+
+  if (speechSynthesis) {
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'zh-CN'
+    utter.rate = 1.0
+    utter.pitch = 1.0
+    utter.volume = 1.0
+
+    utter.onstart = () => { speakingMsgId.value = msgId }
+    utter.onend = () => { speakingMsgId.value = null }
+    utter.onerror = () => { speakingMsgId.value = null }
+
+    currentUtterance = utter
+    speechSynthesis.speak(utter)
+  }
+}
+
+// 停止朗读
+function stopSpeak() {
+  if (speechSynthesis) {
+    try { speechSynthesis.cancel() } catch { }
+  }
+  currentUtterance = null
+  speakingMsgId.value = null
+}
+
+// 页面卸载清理
+onUnmounted(() => {
+  stopSTT()
+  stopSpeak()
+})
 
 const currentTitle = computed(() => sessions.value.find(s => s.id === currentId.value)?.title || '')
 
@@ -302,6 +442,7 @@ function scrollBottom() {
 }
 
 onMounted(async () => {
+  initSpeechSynthesis()
   loadMcp()
   await loadSessions()
   // 进页面默认接最近会话，接着上次聊
@@ -497,5 +638,81 @@ html.dark .session-item.active { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 .chat-input :deep(.el-button--primary) {
   height: 40px; padding: 0 22px;
   border-radius: 8px; font-weight: 600; font-size: 13px;
+}
+
+/* ===== 语音相关样式 ===== */
+.input-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex: 1;
+}
+.voice-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--ch-surface-2);
+  border: 1px solid var(--ch-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ch-text);
+  flex-shrink: 0;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.voice-btn:hover:not(:disabled) {
+  background: var(--ch-accent-soft);
+  border-color: var(--ch-accent);
+  color: var(--ch-accent);
+}
+.voice-btn.recording {
+  background: #fef0f0;
+  border-color: #f56c6c;
+  color: #f56c6c;
+  animation: pulse 1s infinite;
+}
+.voice-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.bubble-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ch-line-soft);
+}
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--ch-surface-2);
+  border: 1px solid var(--ch-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition: all 0.16s;
+}
+.action-btn:hover {
+  background: var(--ch-accent-soft);
+  border-color: var(--ch-accent);
+  color: var(--ch-accent);
+}
+.action-btn.playing {
+  background: var(--ch-accent-soft);
+  border-color: var(--ch-accent);
+  color: var(--ch-accent);
+}
+.action-btn:active {
+  transform: scale(0.95);
 }
 </style>
