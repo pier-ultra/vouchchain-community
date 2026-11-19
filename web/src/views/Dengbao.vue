@@ -517,7 +517,7 @@ onMounted(() => {
   loadPermChain().catch(() => {})
   loadAssets().catch(() => {})
   loadFindings().catch(() => {})
-  loadBackups().catch(() => {})
+  loadBackups().catch(() => {})
 })
 </script>
 
