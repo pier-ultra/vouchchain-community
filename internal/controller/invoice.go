@@ -16,8 +16,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"vouchchain/pkg/invoiceclass"
-	"vouchchain/pkg/invoiceparse"
 	"vouchchain/pkg/invoicematch"
+	"vouchchain/pkg/invoiceparse"
 )
 
 // ---------- 发票线（v13 US-I1~I8 主链） ----------
@@ -193,25 +193,25 @@ func InvoiceLedgerList(r *ghttp.Request) {
 		return
 	}
 	// 补全匹配状态字段（旧库可能无此字段）
+	out := make([]g.Map, 0, len(list))
 	for _, row := range list {
-		if row["match_status"].String() == "" {
-			row["match_status"] = "unverified"
+		m := row.Map()
+		if m["match_status"] == "" {
+			m["match_status"] = "unverified"
 		}
-		if row["match_score"].Int() == 0 {
+		if m["match_score"] == 0 {
 			// 取最新匹配日志的总分
 			var log gdb.Record
 			g.DB().Model("invoice_match_logs").Where("invoice_id", row["id"].Int64()).Order("id desc").Limit(1).Scan(&log)
 			if !log.IsEmpty() {
-				row["match_score"] = log["total_score"].Int()
-				row["match_status"] = log["match_status"].String()
-				row["contract_id"] = log["contract_id"].Int64()
-				row["payment_plan_id"] = log["payment_plan_id"].Int64()
+				lm := log.Map()
+				m["match_score"] = lm["total_score"]
+				m["match_status"] = lm["match_status"]
+				m["contract_id"] = lm["contract_id"]
+				m["payment_plan_id"] = lm["payment_plan_id"]
 			}
 		}
-	}
-	out := make([]g.Map, 0, len(list))
-	for _, row := range list {
-		out = append(out, row.Map())
+		out = append(out, m)
 	}
 	applyFieldMask(r, out)
 	r.Response.WriteJsonExit(g.Map{"code": 0, "data": out})
@@ -621,17 +621,23 @@ func ArchiveDownload(r *ghttp.Request) {
 	name := filepath.Base(path)
 	r.Response.Header().Set("Content-Type", "application/zip")
 	r.Response.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(name))
-r.Response.Write(data)
+	r.Response.Write(data)
 }
 
 // ---------- 发票台账：三方匹配 + 四性归档（P0 免费版核心） ----------
 
 // InvoiceMatchRun 单票/批量执行三方匹配（发票-合同-付款）
 func InvoiceMatchRun(r *ghttp.Request) {
-	ids := r.Get("ids").Ints()
-	if len(ids) == 0 {
+	idInts := r.Get("ids").Ints()
+	var ids []int64
+	if len(idInts) == 0 {
 		if id := r.Get("id").Int64(); id > 0 {
 			ids = []int64{id}
+		}
+	} else {
+		ids = make([]int64, len(idInts))
+		for i, v := range idInts {
+			ids[i] = int64(v)
 		}
 	}
 	if len(ids) == 0 {
@@ -696,7 +702,14 @@ func InvoiceAuditLogs(r *ghttp.Request) {
 
 // InvoiceLedgerExport 导出发票台账审计报表（Excel/Markdown）
 func InvoiceLedgerExport(r *ghttp.Request) {
-	ids := r.Get("ids").Ints()
+	idInts := r.Get("ids").Ints()
+	var ids []int64
+	if len(idInts) > 0 {
+		ids = make([]int64, len(idInts))
+		for i, v := range idInts {
+			ids[i] = int64(v)
+		}
+	}
 	if len(ids) == 0 {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "ids[] 必填"})
 		return

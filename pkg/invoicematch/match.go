@@ -2,7 +2,6 @@ package invoicematch
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -16,33 +15,33 @@ import (
 
 // MatchRule 匹配规则配置
 type MatchRule struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	WeightTaxID    int    `json:"weight_tax_id"`
-	WeightName     int    `json:"weight_name"`
-	WeightAmount   int    `json:"weight_amount"`
-	WeightDate     int    `json:"weight_date"`
-	WeightItem     int    `json:"weight_item"`
-	ThresholdMatched   int  `json:"threshold_matched"`
-	ThresholdMismatch  int  `json:"threshold_mismatch"`
-	Enabled        bool   `json:"enabled"`
-	IsDefault      bool   `json:"is_default"`
+	ID                int64  `json:"id"`
+	Name              string `json:"name"`
+	WeightTaxID       int    `json:"weight_tax_id"`
+	WeightName        int    `json:"weight_name"`
+	WeightAmount      int    `json:"weight_amount"`
+	WeightDate        int    `json:"weight_date"`
+	WeightItem        int    `json:"weight_item"`
+	ThresholdMatched  int    `json:"threshold_matched"`
+	ThresholdMismatch int    `json:"threshold_mismatch"`
+	Enabled           bool   `json:"enabled"`
+	IsDefault         bool   `json:"is_default"`
 }
 
 // MatchResult 单条匹配结果
 type MatchResult struct {
-	InvoiceID       int64   `json:"invoiceId"`
-	ContractID      int64   `json:"contractId"`
-	PaymentPlanID   int64   `json:"paymentPlanId"`
-	ScoreTaxID      int     `json:"scoreTaxId"`
-	ScoreName       int     `json:"scoreName"`
-	ScoreAmount     int     `json:"scoreAmount"`
-	ScoreDate       int     `json:"scoreDate"`
-	ScoreItem       int     `json:"scoreItem"`
-	TotalScore      int     `json:"totalScore"`
-	MatchStatus     string  `json:"matchStatus"`
-	MatchRule       string  `json:"matchRule"`
-	MatchedBy       string  `json:"matchedBy"`
+	InvoiceID     int64  `json:"invoiceId"`
+	ContractID    int64  `json:"contractId"`
+	PaymentPlanID int64  `json:"paymentPlanId"`
+	ScoreTaxID    int    `json:"scoreTaxId"`
+	ScoreName     int    `json:"scoreName"`
+	ScoreAmount   int    `json:"scoreAmount"`
+	ScoreDate     int    `json:"scoreDate"`
+	ScoreItem     int    `json:"scoreItem"`
+	TotalScore    int    `json:"totalScore"`
+	MatchStatus   string `json:"matchStatus"`
+	MatchRule     string `json:"matchRule"`
+	MatchedBy     string `json:"matchedBy"`
 }
 
 // AuditLog 四性归档审计记录
@@ -59,16 +58,16 @@ type AuditLog struct {
 
 // defaultRule 免费版内置默认规则
 var defaultRule = MatchRule{
-	Name:             "default",
-	WeightTaxID:      30,
-	WeightName:       20,
-	WeightAmount:     30,
-	WeightDate:       10,
-	WeightItem:       10,
-	ThresholdMatched: 80,
+	Name:              "default",
+	WeightTaxID:       30,
+	WeightName:        20,
+	WeightAmount:      30,
+	WeightDate:        10,
+	WeightItem:        10,
+	ThresholdMatched:  80,
 	ThresholdMismatch: 40,
-	Enabled:          true,
-	IsDefault:        true,
+	Enabled:           true,
+	IsDefault:         true,
 }
 
 // GetActiveRule 获取当前启用的默认规则
@@ -126,12 +125,12 @@ func RunMatching(ctx context.Context, invoiceID int64, rule *MatchRule) (MatchRe
 		return MatchResult{}, fmt.Errorf("发票不存在: %d", invoiceID)
 	}
 
-	invTaxID := inv["tax_id"].String()          // 发票税号（需在 invoice 表补字段或从 OCR 扩展字段取）
-	invBuyerName := inv["buyer_name"].String()  // 购买方
-	invSellerName := inv["seller_name"].String() // 销售方
-	invAmount := inv["total"].Float64()
-	invDate := inv["issue_date"].String()
-	invItems := inv["items"].String()
+	_ = inv["tax_id"].String()      // 发票税号（需在 invoice 表补字段或从 OCR 扩展字段取）
+	_ = inv["buyer_name"].String()  // 购买方
+	_ = inv["seller_name"].String() // 销售方
+	_ = inv["total"].Float64()
+	_ = inv["issue_date"].String()
+	_ = inv["items"].String()
 
 	// 2. 候选合同：同一法人实体下，状态非草稿/作废
 	contracts, _ := g.DB().Model("contract").
@@ -437,9 +436,9 @@ func RunFourPropertyAudit(ctx context.Context, invoiceID int64, operator string)
 	compPass := len(missing) == 0
 	logs = append(logs, AuditLog{
 		InvoiceID: invoiceID, AuditType: "integrity", FieldName: strings.Join(fields, ","),
-		CheckPass: compPass,
+		CheckPass:   compPass,
 		CheckDetail: map[string]interface{}{"missing": missing, "totalFields": len(fields)},
-		Operator: operator,
+		Operator:    operator,
 	})
 
 	// 3. 合规性：发票类型合规 + 金额非负 + 税率合规（简化：税额/金额在合理区间）
@@ -450,9 +449,9 @@ func RunFourPropertyAudit(ctx context.Context, invoiceID int64, operator string)
 	complPass := inv["total"].Float64() >= 0 && taxRate >= 0 && taxRate <= 0.2 // 含增值税最高 13%，留余量
 	logs = append(logs, AuditLog{
 		InvoiceID: invoiceID, AuditType: "compliance", FieldName: "total,tax,invoice_type",
-		CheckPass: complPass,
+		CheckPass:   complPass,
 		CheckDetail: map[string]interface{}{"total": inv["total"].Float64(), "taxRate": taxRate, "invoiceType": inv["invoice_type"].String()},
-		Operator: operator,
+		Operator:    operator,
 	})
 
 	// 4. 关联性：三方匹配状态 matched + 凭证/回单齐全 + 税号一致
@@ -497,11 +496,11 @@ func RunFourPropertyAudit(ctx context.Context, invoiceID int64, operator string)
 		InvoiceID: invoiceID, AuditType: "association", FieldName: "match_status,voucher_id,receipt,seller_tax_id",
 		CheckPass: assocPass && hasVoucher && hasReceipt && taxConsistent,
 		CheckDetail: map[string]interface{}{
-			"matchStatus":    matchLog["match_status"].String(),
-			"hasVoucher":     hasVoucher,
-			"hasReceipt":     hasReceipt,
-			"taxConsistent":  taxConsistent,
-			"invoiceTaxId":   invTax,
+			"matchStatus":   matchLog["match_status"].String(),
+			"hasVoucher":    hasVoucher,
+			"hasReceipt":    hasReceipt,
+			"taxConsistent": taxConsistent,
+			"invoiceTaxId":  invTax,
 		},
 		Operator: operator,
 	})
@@ -636,7 +635,7 @@ func ExportLedger(ctx context.Context, invoiceIDs []int64) ([][]string, []string
 
 // ---------- 兼容 database/sql 的事务辅助 ----------
 func WithTx(ctx context.Context, fn func(tx *gdb.TX) error) error {
-	return g.DB().Transaction(ctx, fn)
+	return g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		return fn(&tx)
+	})
 }
-
-var _ sql.Tx = (*gdb.TX)(nil)

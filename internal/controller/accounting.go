@@ -62,12 +62,12 @@ func PayableGenerate(r *ghttp.Request) {
 			due = parseBizDate(inv["issue_date"].String()).AddDate(0, 0, req.Days).Format("2006-01-02")
 		}
 		_, err := g.DB().Model("payment_plan").Data(g.Map{
-		"invoice_id": id, "payee": inv["seller_name"].String(),
-		"payee_tax_id": inv["seller_tax_id"].String(),
-		"amount": inv["total"].Float64(), "due_date": due,
-		"status": "planned", "created_at": time.Now(), "updated_at": time.Now(),
-		"legal_entity_id": inv["legal_entity_id"].Int64(),
-	}).Insert()
+			"invoice_id": id, "payee": inv["seller_name"].String(),
+			"payee_tax_id": inv["seller_tax_id"].String(),
+			"amount":       inv["total"].Float64(), "due_date": due,
+			"status": "planned", "created_at": time.Now(), "updated_at": time.Now(),
+			"legal_entity_id": inv["legal_entity_id"].Int64(),
+		}).Insert()
 		if err != nil {
 			skipped++
 			continue
@@ -101,8 +101,8 @@ func PayableList(r *ghttp.Request) {
 			"verifyStatus": inv["verify_status"].String(),
 			"payee":        p["payee"].String(),
 			"payeeTaxId":   p["payee_tax_id"].String(),
-			"amount": p["amount"].Float64(),
-			"dueDate": p["due_date"].String(), "status": p["status"].String(),
+			"amount":       p["amount"].Float64(),
+			"dueDate":      p["due_date"].String(), "status": p["status"].String(),
 			"paidDate": p["paid_date"].String(), "receiptId": p["receipt_id"].Int64(),
 			"remark": p["remark"].String(),
 		}
@@ -129,11 +129,11 @@ func PayableList(r *ghttp.Request) {
 func PayableUpdate(r *ghttp.Request) {
 	id := r.Get("id").Int64()
 	var req struct {
-		DueDate     string   `json:"dueDate"`
-		Amount      *float64 `json:"amount"`
-		Status      string   `json:"status"`
-		Remark      string   `json:"remark"`
-		PayeeTaxId  string   `json:"payeeTaxId"`
+		DueDate    string   `json:"dueDate"`
+		Amount     *float64 `json:"amount"`
+		Status     string   `json:"status"`
+		Remark     string   `json:"remark"`
+		PayeeTaxId string   `json:"payeeTaxId"`
 	}
 	if err := r.Parse(&req); err != nil || id <= 0 {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 与参数必填"})
