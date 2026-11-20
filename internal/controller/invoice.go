@@ -615,12 +615,12 @@ func ArchiveDownload(r *ghttp.Request) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-r.Response.WriteStatusExit(404, "归档包读取失败（源件可能已迁移）")
-	return
-}
-name := filepath.Base(path)
-r.Response.Header().Set("Content-Type", "application/zip")
-r.Response.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(name))
+		r.Response.WriteStatusExit(404, "归档包读取失败（源件可能已迁移）")
+		return
+	}
+	name := filepath.Base(path)
+	r.Response.Header().Set("Content-Type", "application/zip")
+	r.Response.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(name))
 r.Response.Write(data)
 }
 

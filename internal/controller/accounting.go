@@ -61,7 +61,7 @@ func PayableGenerate(r *ghttp.Request) {
 		if due == "" {
 			due = parseBizDate(inv["issue_date"].String()).AddDate(0, 0, req.Days).Format("2006-01-02")
 		}
-_, err := g.DB().Model("payment_plan").Data(g.Map{
+		_, err := g.DB().Model("payment_plan").Data(g.Map{
 		"invoice_id": id, "payee": inv["seller_name"].String(),
 		"payee_tax_id": inv["seller_tax_id"].String(),
 		"amount": inv["total"].Float64(), "due_date": due,
