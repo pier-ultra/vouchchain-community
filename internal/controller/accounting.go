@@ -61,12 +61,13 @@ func PayableGenerate(r *ghttp.Request) {
 		if due == "" {
 			due = parseBizDate(inv["issue_date"].String()).AddDate(0, 0, req.Days).Format("2006-01-02")
 		}
-		_, err := g.DB().Model("payment_plan").Data(g.Map{
-			"invoice_id": id, "payee": inv["seller_name"].String(),
-			"amount": inv["total"].Float64(), "due_date": due,
-			"status": "planned", "created_at": time.Now(), "updated_at": time.Now(),
-			"legal_entity_id": inv["legal_entity_id"].Int64(),
-		}).Insert()
+_, err := g.DB().Model("payment_plan").Data(g.Map{
+		"invoice_id": id, "payee": inv["seller_name"].String(),
+		"payee_tax_id": inv["seller_tax_id"].String(),
+		"amount": inv["total"].Float64(), "due_date": due,
+		"status": "planned", "created_at": time.Now(), "updated_at": time.Now(),
+		"legal_entity_id": inv["legal_entity_id"].Int64(),
+	}).Insert()
 		if err != nil {
 			skipped++
 			continue
@@ -98,7 +99,9 @@ func PayableList(r *ghttp.Request) {
 			"id": p["id"].Int64(), "invoiceId": p["invoice_id"].Int64(),
 			"invoiceNo": inv["invoice_no"].String(), "sellerName": inv["seller_name"].String(),
 			"verifyStatus": inv["verify_status"].String(),
-			"payee":        p["payee"].String(), "amount": p["amount"].Float64(),
+			"payee":        p["payee"].String(),
+			"payeeTaxId":   p["payee_tax_id"].String(),
+			"amount": p["amount"].Float64(),
 			"dueDate": p["due_date"].String(), "status": p["status"].String(),
 			"paidDate": p["paid_date"].String(), "receiptId": p["receipt_id"].Int64(),
 			"remark": p["remark"].String(),
@@ -122,14 +125,15 @@ func PayableList(r *ghttp.Request) {
 	}})
 }
 
-// PayableUpdate 改账期/金额/状态（会计手工调整留痕）
+// PayableUpdate 改账期/金额/状态/收款方税号（会计手工调整留痕）
 func PayableUpdate(r *ghttp.Request) {
 	id := r.Get("id").Int64()
 	var req struct {
-		DueDate string   `json:"dueDate"`
-		Amount  *float64 `json:"amount"`
-		Status  string   `json:"status"`
-		Remark  string   `json:"remark"`
+		DueDate     string   `json:"dueDate"`
+		Amount      *float64 `json:"amount"`
+		Status      string   `json:"status"`
+		Remark      string   `json:"remark"`
+		PayeeTaxId  string   `json:"payeeTaxId"`
 	}
 	if err := r.Parse(&req); err != nil || id <= 0 {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 与参数必填"})
@@ -149,12 +153,15 @@ func PayableUpdate(r *ghttp.Request) {
 		}
 		data["status"] = req.Status
 	}
+	if req.PayeeTaxId != "" {
+		data["payee_tax_id"] = req.PayeeTaxId
+	}
 	data["remark"] = req.Remark
 	if _, err := g.DB().Model("payment_plan").Data(data).Where("id", id).Update(); err != nil {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
-	audit(r, "payable.update", "payment_plan", id, g.Map{"dueDate": req.DueDate, "status": req.Status})
+	audit(r, "payable.update", "payment_plan", id, g.Map{"dueDate": req.DueDate, "status": req.Status, "payeeTaxId": req.PayeeTaxId})
 	r.Response.WriteJsonExit(g.Map{"code": 0, "message": "ok"})
 }
 
@@ -171,9 +178,10 @@ func PayablePay(r *ghttp.Request) {
 		return
 	}
 	var req struct {
-		PaidDate string `json:"paidDate"`
-		Payer    string `json:"payer"`
-		Remark   string `json:"remark"`
+		PaidDate   string `json:"paidDate"`
+		Payer      string `json:"payer"`
+		PayeeTaxId string `json:"payeeTaxId"`
+		Remark     string `json:"remark"`
 	}
 	_ = r.Parse(&req)
 	if req.PaidDate == "" {
@@ -184,8 +192,13 @@ func PayablePay(r *ghttp.Request) {
 	if payer == "" {
 		payer = inv["buyer_name"].String()
 	}
+	payeeTaxId := req.PayeeTaxId
+	if payeeTaxId == "" {
+		payeeTaxId = plan["payee_tax_id"].String()
+	}
 	res, err := g.DB().Model("bank_receipt").Data(g.Map{
 		"payer": payer, "payee": plan["payee"].String(), "amount": plan["amount"].Float64(),
+		"payer_tax_id": inv["buyer_tax_id"].String(), "payee_tax_id": payeeTaxId,
 		"receipt_date": req.PaidDate, "matched_invoice_id": plan["invoice_id"].Int64(),
 		"match_rule": "付款计划登记打款自动关联（发票 " + inv["invoice_no"].String() + "）",
 		"remark":     req.Remark, "created_at": time.Now(),

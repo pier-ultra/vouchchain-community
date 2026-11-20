@@ -63,6 +63,14 @@
   {
     "path": "pages/contract-template/index",
     "style": { "navigationBarTitleText": "合同模板" }
+  },
+  {
+    "path": "pages/invoice-ledger/index",
+    "style": { "navigationBarTitleText": "发票台账" }
+  },
+  {
+    "path": "pages/invoice-ledger/detail",
+    "style": { "navigationBarTitleText": "台账详情" }
   }
   ],
   "tabBar": {

@@ -81,6 +81,7 @@ export interface Contract {
   id: number
   title: string
   counterParty: string
+  counterPartyTaxId: string
   amount: number
   currency: string
   signDate: string
@@ -359,9 +360,9 @@ export interface Obligation {
     http.post<never, ApiResult<{ created: number; skipped: number }>>('/payables/generate', d),
   payables: (params?: { status?: string }) =>
     http.get<never, ApiResult<{ list: PayableRow[]; summary: PayableSummary }>>('/payables', { params }),
-  payableUpdate: (id: number, d: { dueDate?: string; amount?: number; status?: string; remark?: string }) =>
+  payableUpdate: (id: number, d: { dueDate?: string; amount?: number; status?: string; remark?: string; payeeTaxId?: string }) =>
     http.put<never, ApiResult>(`/payables/${id}`, d),
-  payablePay: (id: number, d: { paidDate?: string; payer?: string; remark?: string }) =>
+  payablePay: (id: number, d: { paidDate?: string; payer?: string; payeeTaxId?: string; remark?: string }) =>
     http.post<never, ApiResult<{ receiptId: number; status: string }>>(`/payables/${id}/pay`, d),
   accountMappings: () => http.get<never, ApiResult<AccountMappingRow[]>>('/account-mappings'),
   accountMappingSave: (d: { category: string; subjectCode: string; subjectName: string; direction: string }) =>
@@ -470,6 +471,20 @@ export interface Obligation {
   chatSessionRename: (id: number, title: string) =>
     http.put<never, ApiResult>(`/chat/sessions/${id}`, { title }),
   mcpStatus: () => http.get<never, ApiResult<McpStatus>>('/mcp/status'),
+
+  // ---------- 发票台账：三方匹配 + 四性归档（P0 免费版核心） ----------
+  invoiceLedger: (params?: { keyword?: string; matchStatus?: string }) =>
+    http.get<never, ApiResult<InvoiceLedgerRow[]>>('/invoices/ledger', { params }),
+  invoiceMatchRun: (ids: number[]) =>
+    http.post<never, ApiResult<MatchLogRow[]>>('/invoices/match', { ids }),
+  invoiceMatchLogs: (id: number) =>
+    http.get<never, ApiResult<MatchLogRow[]>>(`/invoices/${id}/match-logs`),
+  invoiceAuditRun: (id: number) =>
+    http.post<never, ApiResult<AuditLogRow[]>>(`/invoices/${id}/audit`),
+  invoiceAuditLogs: (id: number) =>
+    http.get<never, ApiResult<AuditLogRow[]>>(`/invoices/${id}/audit-logs`),
+  invoiceLedgerExportUrl: (ids: number[], format: 'xlsx' | 'md' = 'xlsx') =>
+    `/api/invoices/ledger/export?ids=${ids.join(',')}&format=${format}`,
 }
 
 export interface McpStatus {
@@ -638,6 +653,7 @@ export interface PayableRow {
   sellerName: string
   verifyStatus: string
   payee: string
+  payeeTaxId: string
   amount: number
   dueDate: string
   status: string
@@ -1114,4 +1130,60 @@ export interface ChatSendResult {
   sessionId: number
   reply: string
   steps: ChatStep[]
+}
+
+// ---------- 发票台账类型 ----------
+export interface InvoiceLedgerRow {
+  id: number
+  invoice_no: string
+  issue_date: string
+  buyer_name: string
+  seller_name: string
+  amount: number
+  tax: number
+  total: number
+  invoice_type: string
+  verify_status: string
+  archive_status: string
+  match_status: string
+  match_score: number
+  contract_id: number
+  payment_plan_id: number
+  voucher_id: number
+  category: string
+  legal_entity_id: number
+  // 新增税号字段（20261120 迁移补齐）
+  seller_tax_id: string
+  buyer_tax_id: string
+}
+
+export interface MatchLogRow {
+  id: number
+  invoice_id: number
+  contract_id: number
+  payment_plan_id: number
+  score_tax_id: number
+  score_name: number
+  score_amount: number
+  score_date: number
+  score_item: number
+  total_score: number
+  match_status: string
+  match_rule: string
+  matched_by: string
+  remark: string
+  created_at: string
+}
+
+export interface AuditLogRow {
+  id: number
+  invoice_id: number
+  audit_type: string
+  field_name: string
+  expected_hash: string
+  actual_hash: string
+  check_pass: boolean
+  check_detail: Record<string, unknown>
+  operator: string
+  created_at: string
 }

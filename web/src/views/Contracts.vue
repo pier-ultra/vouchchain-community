@@ -35,6 +35,7 @@
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="title" label="合同名称" min-width="180" />
       <el-table-column prop="counterParty" label="对方主体" min-width="150" />
+      <el-table-column prop="counterPartyTaxId" label="对方税号" width="130" />
       <el-table-column label="金额" width="140">
         <template #default="{ row }">
           <span>¥ {{ fmtAmount(row.amount) }}</span>
@@ -83,6 +84,9 @@
             争议条款 {{ partyTip.disputeClauseCount }} 条。{{ partyTip.warning }}
             <router-link to="/party-profiles" class="party-link">查看完整画像 →</router-link>
           </el-alert>
+        </el-form-item>
+        <el-form-item label="对方税号">
+          <el-input v-model="form.counterPartyTaxId" placeholder="如：91110108MA0000000X" maxlength="50" />
         </el-form-item>
         <el-form-item label="金额">
           <el-input-number v-model="form.amount" :min="0" :precision="2" style="width: 200px" />
@@ -155,6 +159,7 @@ const query = reactive({ status: '', keyword: '', page: 1, pageSize: 10 })
 const form = reactive({
   title: '',
   counterParty: '',
+  counterPartyTaxId: '',
   amount: 0,
   currency: 'CNY',
   signDate: '',
@@ -196,6 +201,7 @@ function openCreate() {
   partyTip.value = null
   form.title = ''
   form.counterParty = ''
+  form.counterPartyTaxId = ''
   form.amount = 0
   form.currency = 'CNY'
   form.signDate = ''
@@ -207,6 +213,7 @@ function openEdit(row: Contract) {
   editingId.value = row.id
   form.title = row.title
   form.counterParty = row.counterParty
+  form.counterPartyTaxId = row.counterPartyTaxId || ''
   form.amount = row.amount
   form.currency = row.currency || 'CNY'
   form.signDate = row.signDate || ''

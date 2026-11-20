@@ -5,6 +5,62 @@ import type { SessionRow } from '../core/roles'
 // 宽松行类型：移动端页面以展示/轻操作为主，字段按后端实际返回为准
 export type Row = Record<string, any>
 
+// ---------- 发票台账类型 ----------
+export interface InvoiceLedgerRow {
+  id: number
+  invoice_no: string
+  issue_date: string
+  buyer_name: string
+  seller_name: string
+  amount: number
+  tax: number
+  total: number
+  invoice_type: string
+  verify_status: string
+  archive_status: string
+  match_status: string
+  match_score: number
+  contract_id: number
+  payment_plan_id: number
+  voucher_id: number
+  category: string
+  legal_entity_id: number
+  // 新增税号字段（20261120 迁移补齐）
+  seller_tax_id: string
+  buyer_tax_id: string
+}
+
+export interface MatchLogRow {
+  id: number
+  invoice_id: number
+  contract_id: number
+  payment_plan_id: number
+  score_tax_id: number
+  score_name: number
+  score_amount: number
+  score_date: number
+  score_item: number
+  total_score: number
+  match_status: string
+  match_rule: string
+  matched_by: string
+  remark: string
+  created_at: string
+}
+
+export interface AuditLogRow {
+  id: number
+  invoice_id: number
+  audit_type: string
+  field_name: string
+  expected_hash: string
+  actual_hash: string
+  check_pass: boolean
+  check_detail: Record<string, unknown>
+  operator: string
+  created_at: string
+}
+
 // 请求头构造（SSE/导出等非标准请求复用；与 http.ts buildHeader 同口径）
 function authHeader(json = true): Record<string, string> {
   const h: Record<string, string> = {}
@@ -76,6 +132,20 @@ export const api = {
     http.post<ApiResult>(`/invoices/${id}/verify`, { verifyStatus }),
   invoiceArchive: (id: number) => http.post<ApiResult<{ archivePath: string }>>(`/invoices/${id}/archive`),
   invoiceChain: (id: number) => http.get<ApiResult<Row[]>>(`/invoices/${id}/chain`),
+
+  // ---------- 发票台账：三方匹配 + 四性归档（P0 免费版核心） ----------
+  invoiceLedger: (params?: { keyword?: string; matchStatus?: string }) =>
+    http.get<ApiResult<InvoiceLedgerRow[]>>('/invoices/ledger', { params }),
+  invoiceMatchRun: (ids: number[]) =>
+    http.post<ApiResult<MatchLogRow[]>>('/invoices/match', { ids }),
+  invoiceMatchLogs: (id: number) =>
+    http.get<ApiResult<MatchLogRow[]>>(`/invoices/${id}/match-logs`),
+  invoiceAuditRun: (id: number) =>
+    http.post<ApiResult<AuditLogRow[]>>(`/invoices/${id}/audit`),
+  invoiceAuditLogs: (id: number) =>
+    http.get<ApiResult<AuditLogRow[]>>(`/invoices/${id}/audit-logs`),
+  invoiceLedgerExportUrl: (ids: number[], format: 'xlsx' | 'md' = 'xlsx') =>
+    `/api/invoices/ledger/export?ids=${ids.join(',')}&format=${format}`,
 
   // ---------- 用印线 ----------
   seals: () => http.get<ApiResult<Row[]>>('/seals'),

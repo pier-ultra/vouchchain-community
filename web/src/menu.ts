@@ -42,6 +42,7 @@ export const menuGroups: MenuGroup[] = [
     key: 'grp-finance', title: '发票与财务', icon: 'Coin',
     items: [
       { path: '/invoices', title: '发票中心', icon: 'Tickets' },
+      { path: '/invoice-ledger', title: '发票台账（三方匹配+四性归档）', icon: 'Connection' },
       { path: '/invoice-class', title: '发票分类', icon: 'Collection' },
       { path: '/expense', title: '费控管理', icon: 'Wallet' },
       { path: '/skills', title: 'AI 技能', icon: 'MagicStick' },

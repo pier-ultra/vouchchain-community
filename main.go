@@ -204,6 +204,16 @@ func main() {
 		group.GET("/invoices/red-flush-alerts", controller.InvoiceRedFlushAlerts) // A2 红冲预警列表
 		group.GET("/archives", controller.ArchiveList)                            // AI5.5 归档检索
 		group.GET("/archives/{id}/download", controller.ArchiveDownload)          // AI5.5 归档调阅
+		// 发票台账：三方匹配 + 四性归档（P0 免费版核心）
+		group.GET("/invoices/ledger", controller.InvoiceLedgerList)
+		group.POST("/invoices/match", controller.InvoiceMatchRun)
+		group.GET("/invoices/{id}/match-logs", controller.InvoiceMatchLogs)
+		group.POST("/invoices/{id}/audit", controller.InvoiceAuditRun)
+		group.GET("/invoices/{id}/audit-logs", controller.InvoiceAuditLogs)
+		group.GET("/invoices/ledger/export", controller.InvoiceLedgerExport)
+		group.GET("/invoices/match-rules", controller.InvoiceMatchRules)
+		group.POST("/invoices/match-rules", controller.InvoiceMatchRules)
+		group.PUT("/invoices/match-rules/{id}", controller.InvoiceMatchRules)
 		group.POST("/vouchers", controller.VoucherCreate)
 		group.GET("/vouchers", controller.VoucherList)
 		group.POST("/receipts", controller.ReceiptCreate)

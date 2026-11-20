@@ -30,6 +30,7 @@ const entries: Entry[] = [
   { key: 'contract-generate', label: 'AI 生成合同', icon: 'AI', color: '#7c3aed', url: '/pages/contract-generate/index' },
   { key: 'contract-template', label: '合同模板', icon: '模', color: '#06b6d4', url: '/pages/contract-template/index' },
   { key: 'invoices', label: '发票', icon: '票', color: '#c77c0a', url: '/pages/invoices/index' },
+  { key: 'invoice-ledger', label: '发票台账', icon: '账', color: '#7c3aed', url: '/pages/invoice-ledger/index' },
   { key: 'seals', label: '用印', icon: '印', color: '#d64545', url: '/pages/seals/index' },
   { key: 'dengbao', label: '等保证据', icon: '等', color: '#6b7280', url: '/pages/dengbao/index' },
   { key: 'revrec', label: '收入确认', icon: '收', color: '#7c3aed', url: '/pages/revrec/index' },

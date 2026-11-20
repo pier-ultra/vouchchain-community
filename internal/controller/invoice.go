@@ -17,6 +17,7 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 	"vouchchain/pkg/invoiceclass"
 	"vouchchain/pkg/invoiceparse"
+	"vouchchain/pkg/invoicematch"
 )
 
 // ---------- 发票线（v13 US-I1~I8 主链） ----------
@@ -160,6 +161,54 @@ func InvoiceList(r *ghttp.Request) {
 		return
 	}
 	// AG1.2 字段级权限：角色配置了字段掩码时，列表返回前替换为 ***
+	out := make([]g.Map, 0, len(list))
+	for _, row := range list {
+		out = append(out, row.Map())
+	}
+	applyFieldMask(r, out)
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": out})
+}
+
+// InvoiceLedgerList 发票台账列表（含三方匹配状态 + 四性审计概览）
+func InvoiceLedgerList(r *ghttp.Request) {
+	keyword := r.Get("keyword").String()
+	matchStatus := r.Get("matchStatus").String()
+	m := scopeFilter(g.DB().Model("invoice"), r)
+	if keyword != "" {
+		m = m.Where("invoice_no LIKE ? OR buyer_name LIKE ? OR seller_name LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	if matchStatus != "" {
+		m = m.Where("match_status", matchStatus)
+	}
+	if cat := r.Get("category").String(); cat != "" {
+		if cat == "未分类" {
+			m = m.Where("category", "")
+		} else {
+			m = m.Where("category", cat)
+		}
+	}
+	list, err := m.Order("id desc").Limit(200).All()
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	// 补全匹配状态字段（旧库可能无此字段）
+	for _, row := range list {
+		if row["match_status"].String() == "" {
+			row["match_status"] = "unverified"
+		}
+		if row["match_score"].Int() == 0 {
+			// 取最新匹配日志的总分
+			var log gdb.Record
+			g.DB().Model("invoice_match_logs").Where("invoice_id", row["id"].Int64()).Order("id desc").Limit(1).Scan(&log)
+			if !log.IsEmpty() {
+				row["match_score"] = log["total_score"].Int()
+				row["match_status"] = log["match_status"].String()
+				row["contract_id"] = log["contract_id"].Int64()
+				row["payment_plan_id"] = log["payment_plan_id"].Int64()
+			}
+		}
+	}
 	out := make([]g.Map, 0, len(list))
 	for _, row := range list {
 		out = append(out, row.Map())
@@ -566,11 +615,126 @@ func ArchiveDownload(r *ghttp.Request) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		r.Response.WriteStatusExit(404, "归档包读取失败（源件可能已迁移）")
+r.Response.WriteStatusExit(404, "归档包读取失败（源件可能已迁移）")
+	return
+}
+name := filepath.Base(path)
+r.Response.Header().Set("Content-Type", "application/zip")
+r.Response.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(name))
+r.Response.Write(data)
+}
+
+// ---------- 发票台账：三方匹配 + 四性归档（P0 免费版核心） ----------
+
+// InvoiceMatchRun 单票/批量执行三方匹配（发票-合同-付款）
+func InvoiceMatchRun(r *ghttp.Request) {
+	ids := r.Get("ids").Ints()
+	if len(ids) == 0 {
+		if id := r.Get("id").Int64(); id > 0 {
+			ids = []int64{id}
+		}
+	}
+	if len(ids) == 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 或 ids[] 必填"})
 		return
 	}
-	name := filepath.Base(path)
-	r.Response.Header().Set("Content-Type", "application/zip")
-	r.Response.Header().Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.QueryEscape(name))
-	r.Response.Write(data)
+	results, err := invoicematch.BatchRunMatching(r.Context(), ids)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	audit(r, "invoice.match", "invoice", 0, g.Map{"count": len(results)})
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": results})
+}
+
+// InvoiceMatchLogs 获取发票匹配日志
+func InvoiceMatchLogs(r *ghttp.Request) {
+	id := r.Get("id").Int64()
+	if id <= 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 必填"})
+		return
+	}
+	logs, err := invoicematch.GetMatchLogs(r.Context(), id)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": logs})
+}
+
+// InvoiceAuditRun 执行四性归档审计（真实性/完整性/合规性/关联性）
+func InvoiceAuditRun(r *ghttp.Request) {
+	id := r.Get("id").Int64()
+	if id <= 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 必填"})
+		return
+	}
+	operator := r.GetCtxVar("user").String()
+	logs, err := invoicematch.RunFourPropertyAudit(r.Context(), id, operator)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	audit(r, "invoice.audit", "invoice", id, g.Map{"auditCount": len(logs)})
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": logs})
+}
+
+// InvoiceAuditLogs 获取四性归档审计历史
+func InvoiceAuditLogs(r *ghttp.Request) {
+	id := r.Get("id").Int64()
+	if id <= 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id 必填"})
+		return
+	}
+	logs, err := invoicematch.GetAuditLogs(r.Context(), id)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": logs})
+}
+
+// InvoiceLedgerExport 导出发票台账审计报表（Excel/Markdown）
+func InvoiceLedgerExport(r *ghttp.Request) {
+	ids := r.Get("ids").Ints()
+	if len(ids) == 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "ids[] 必填"})
+		return
+	}
+	data, headers, err := invoicematch.ExportLedger(r.Context(), ids)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	format := r.Get("format").String()
+	if format == "xlsx" {
+		if err := sendXLSX(r, fmt.Sprintf("invoice-ledger-%d.xlsx", time.Now().Unix()), "发票台账审计报表", headers, data); err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		}
+		return
+	}
+	// Markdown
+	var body strings.Builder
+	body.WriteString("# 发票台账审计报表\n\n")
+	body.WriteString(fmt.Sprintf("- 导出时间：%s\n- 发票张数：%d\n\n", time.Now().Format("2006-01-02 15:04:05"), len(data)))
+	body.WriteString("| " + strings.Join(headers, " | ") + " |\n")
+	body.WriteString("|" + strings.Repeat("---|", len(headers)) + "\n")
+	for _, row := range data {
+		body.WriteString("| " + strings.Join(row, " | ") + " |\n")
+	}
+	r.Response.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	r.Response.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=invoice-ledger-%d.md", time.Now().Unix()))
+	r.Response.Write([]byte{0xEF, 0xBB, 0xBF})
+	r.Response.Write(body.String())
+}
+
+// InvoiceMatchRules 获取/更新匹配规则（专业版预留，免费版只读默认规则）
+func InvoiceMatchRules(r *ghttp.Request) {
+	if r.Method == "GET" {
+		rules, _ := invoicematch.GetAllEnabledRules(r.Context())
+		r.Response.WriteJsonExit(g.Map{"code": 0, "data": rules})
+		return
+	}
+	// POST/PUT 更新规则——免费版拦截，专业版放行（build tag 控制）
+	r.Response.WriteJsonExit(g.Map{"code": 403, "message": "匹配规则编辑为专业版功能，免费版仅内置默认规则"})
 }

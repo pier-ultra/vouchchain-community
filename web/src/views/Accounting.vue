@@ -31,8 +31,9 @@
           <el-button size="small" @click="loadPayables">刷新</el-button>
         </div>
         <el-table :data="payables" border size="small" v-loading="loading.payables">
-          <el-table-column prop="invoiceNo" label="发票号" width="160" />
+          <el-table-column prop="invoiceNo" label="发票号" width="150" />
           <el-table-column prop="payee" label="收款方" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="payeeTaxId" label="收款方税号" width="160" show-overflow-tooltip />
           <el-table-column label="金额" width="120">
             <template #default="{ row }">¥ {{ fmt(row.amount) }}</template>
           </el-table-column>
@@ -172,6 +173,7 @@
       <el-form label-width="90px">
         <el-form-item label="打款日期"><el-date-picker v-model="payForm.paidDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
         <el-form-item label="付款方"><el-input v-model="payForm.payer" placeholder="默认取发票购买方" /></el-form-item>
+        <el-form-item label="收款方税号"><el-input v-model="payForm.payeeTaxId" placeholder="收款方统一社会信用代码" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="payForm.remark" type="textarea" :rows="2" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="payVisible = false">取消</el-button><el-button type="primary" @click="doPay">确认打款</el-button></template>
@@ -251,9 +253,9 @@ async function genPlans() {
   } finally { loading.gen = false }
 }
 const payVisible = ref(false)
-const payForm = reactive({ paidDate: '', payer: '', remark: '' })
+const payForm = reactive({ paidDate: '', payer: '', payeeTaxId: '', remark: '' })
 let payId = 0
-function openPay(row: PayableRow) { payId = row.id; payVisible.value = true }
+function openPay(row: PayableRow) { payId = row.id; payForm.paidDate = ''; payForm.payer = ''; payForm.payeeTaxId = row.payeeTaxId || ''; payForm.remark = ''; payVisible.value = true }
 async function doPay() {
   await api.payablePay(payId, payForm)
   ElMessage.success('已登记打款，银行回单自动关联该发票')

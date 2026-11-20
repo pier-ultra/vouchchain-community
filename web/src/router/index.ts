@@ -21,6 +21,7 @@ const router = createRouter({
         { path: 'sign', component: () => import('../views/Sign.vue'), meta: { title: '签署管理' } },
         { path: 'approvals', component: () => import('../views/Approvals.vue'), meta: { title: '审批中心' } },
         { path: 'invoices', component: () => import('../views/InvoiceCenter.vue'), meta: { title: '发票中心' } },
+        { path: 'invoice-ledger', component: () => import('../views/InvoiceLedger.vue'), meta: { title: '发票台账（三方匹配+四性归档）' } },
         { path: 'accounting', component: () => import('../views/Accounting.vue'), meta: { title: '应付与做账' } },
         { path: 'model-configs', component: () => import('../views/ModelConfigs.vue'), meta: { title: '模型配置' } },
         { path: 'organization', component: () => import('../views/Organization.vue'), meta: { title: '组织与主体' } },
