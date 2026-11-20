@@ -3,8 +3,85 @@
     <!-- 顶部问候：每日工作台 -->
     <el-card shadow="never" class="hero">
       <div class="hero-hello">你好，{{ userName }}</div>
-      <div class="hero-sub">今天是 {{ todayStr }}。已为你聚合本周关注、进行中追踪与下一步建议。</div>
+      <div class="hero-sub">今天是 {{ todayStr }}。待办事项已聚合，点击卡片直达处理页面。</div>
     </el-card>
+
+    <!-- ============ P0-1：我的待办中心（聚合入口） ============ -->
+    <div class="sec-title">我的待办 <el-tag v-if="todoTotal > 0" type="danger" size="small">{{ todoTotal }} 笔待处理</el-tag></div>
+    <el-row :gutter="16" class="mb">
+      <el-col v-for="t in todoList" :key="t.id" :span="8">
+        <el-card shadow="hover" class="todo-card" @click="go(t.url)">
+          <div class="todo-header">
+            <div class="todo-icon" :class="t.icon">{{ todoIcon(t.type) }}</div>
+            <el-tag v-if="t.status === 'urgent'" type="danger" size="small" class="todo-status">紧急</el-tag>
+            <el-tag v-else-if="t.status === 'overdue'" type="warning" size="small" class="todo-status">逾期</el-tag>
+            <el-tag v-else type="success" size="small" class="todo-status">待处理</el-tag>
+          </div>
+          <div class="todo-title">{{ t.title }}</div>
+          <div class="todo-desc">{{ t.desc }}</div>
+          <div class="todo-count">{{ t.count }} 笔</div>
+          <div class="todo-arrow">→</div>
+        </el-card>
+      </el-col>
+      <el-col v-if="!todoList.length" :span="24">
+        <el-empty :image-size="60" description="恭喜，暂无待办事项" />
+      </el-col>
+    </el-row>
+
+    <!-- ============ P0-4：进度可视化看板（状态条） ============ -->
+    <div class="sec-title">业务进度看板</div>
+    <el-row :gutter="16" class="mb">
+      <el-col :span="14">
+        <el-card shadow="never">
+          <template #header>
+            <div class="board-header">
+              <b>合同流转进度</b>
+              <span class="hint">起草 → 复核 → 审批 → 签署 → 归档</span>
+            </div>
+          </template>
+          <div v-for="(p, i) in contractProgress" :key="i" class="progress-item">
+            <div class="progress-row">
+              <span class="progress-name">{{ p.name }}</span>
+              <span class="progress-pct">{{ p.pct }}%</span>
+            </div>
+            <el-progress
+              :percentage="p.pct"
+              :status="p.status"
+              :color="progressColor(p.pct)"
+              stroke-width="8"
+              show-text="false"
+              class="progress-bar"
+            />
+          </div>
+          <el-empty v-if="!contractProgress.length" :image-size="60" description="暂无合同进度数据" />
+        </el-card>
+      </el-col>
+      <el-col :span="10">
+        <el-card shadow="never">
+          <template #header>
+            <div class="board-header">
+              <b>发票处理进度</b>
+              <span class="hint">接收 → 验真 → 匹配 → 归档 → 付款</span>
+            </div>
+          </template>
+          <div v-for="(p, i) in invoiceProgress" :key="i" class="progress-item">
+            <div class="progress-row">
+              <span class="progress-name">{{ p.name }}</span>
+              <span class="progress-pct">{{ p.pct }}%</span>
+            </div>
+            <el-progress
+              :percentage="p.pct"
+              :status="p.status"
+              :color="progressColor(p.pct)"
+              stroke-width="8"
+              show-text="false"
+              class="progress-bar"
+            />
+          </div>
+          <el-empty v-if="!invoiceProgress.length" :image-size="60" description="暂无发票进度数据" />
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- 本周关注卡（角标数字，点击直达） -->
     <div class="sec-title">本周关注</div>
@@ -84,11 +161,80 @@
 import { onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage, ElNotification } from 'element-plus'
-import { api } from '../api'
+import { api, type TodoItem, type TodoListResult } from '../api'
 import { useTheme } from '../composables/useTheme'
 
 const { isDark } = useTheme()
 const textColor = () => (isDark.value ? '#c8c9cc' : '#606266')
+
+// ---------- 待办中心 ----------
+const todoList = ref<TodoItem[]>([])
+const todoTotal = ref(0)
+
+async function loadTodo() {
+  try {
+    const res = await api.todoList()
+    if (res?.code === 0) {
+      const data = res.data || { list: [], total: 0 }
+      todoList.value = data.list
+      todoTotal.value = data.total || 0
+    }
+  } catch { /* 兜底 */ }
+}
+
+function todoIcon(type: string) {
+  const m: Record<string, string> = {
+    invoice: '📄',
+    contract: '📑',
+    approval: '📝',
+    journal: '📒',
+    payable: '💰',
+  }
+  return m[type] || '📋'
+}
+
+// ---------- 进度可视化看板 ----------
+const contractProgress = ref<{ name: string; pct: number; status: string }[]>([])
+const invoiceProgress = ref<{ name: string; pct: number; status: string }[]>([])
+
+async function loadProgress() {
+  try {
+    // 合同进度：从合同台账聚合状态分布
+    const [cRes, iRes] = await Promise.allSettled([
+      api.contracts(),
+      api.invoiceLedger(),
+    ])
+    if (cRes.status === 'fulfilled' && cRes.value.code === 0) {
+      const contracts = cRes.value.data || []
+      const total = contracts.length || 1
+      contractProgress.value = [
+        { name: '起草', pct: Math.round((contracts.filter(c => c.status === 'draft').length / total) * 100), status: 'info' },
+        { name: '复核', pct: Math.round((contracts.filter(c => c.status === 'reviewing').length / total) * 100), status: 'warning' },
+        { name: '审批', pct: Math.round((contracts.filter(c => c.status === 'approving').length / total) * 100), status: 'warning' },
+        { name: '签署', pct: Math.round((contracts.filter(c => c.status === 'signed').length / total) * 100), status: 'success' },
+        { name: '归档', pct: Math.round((contracts.filter(c => c.status === 'archived').length / total) * 100), status: 'success' },
+      ]
+    }
+    if (iRes.status === 'fulfilled' && iRes.value.code === 0) {
+      const invoices = iRes.value.data || []
+      const total = invoices.length || 1
+      invoiceProgress.value = [
+        { name: '接收', pct: 100, status: 'success' },
+        { name: '验真', pct: Math.round((invoices.filter(i => i.verify_status === 'verified').length / total) * 100), status: 'info' },
+        { name: '匹配', pct: Math.round((invoices.filter(i => i.match_status === 'matched').length / total) * 100), status: 'warning' },
+        { name: '归档', pct: Math.round((invoices.filter(i => i.archive_status === 'archived').length / total) * 100), status: 'success' },
+        { name: '付款', pct: Math.round((invoices.filter(i => i.voucher_id).length / total) * 100), status: 'success' },
+      ]
+    }
+  } catch { /* 兜底 */ }
+}
+
+function progressColor(pct: number) {
+  if (pct >= 80) return '#0f9d6e'
+  if (pct >= 50) return '#4f46e5'
+  if (pct > 0) return '#c77c0a'
+  return '#d64545'
+}
 
 // ---------- 每日工作台聚合 ----------
 const cards = ref<{ key: string; label: string; count: number; tone: string; url: string }[]>([])
@@ -210,7 +356,7 @@ function renderCharts() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([loadDaily(), loadMonthly(), loadDuban()])
+  await Promise.allSettled([loadDaily(), loadTodo(), loadProgress(), loadMonthly(), loadDuban()])
   await nextTick()
   renderCharts()
   startWsReconnect()
@@ -250,4 +396,23 @@ function onResize() { monthlyChart?.resize(); dubanChart?.resize() }
 .brief-meta { font-size: 12px; color: #909399; margin-bottom: 8px; }
 .brief-text { font-size: 13px; line-height: 1.8; color: var(--el-text-color-regular, #606266); margin: 0; font-family: inherit; }
 .chart { width: 100%; height: 320px; }
+
+/* 待办卡片 */
+.todo-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.todo-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.todo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.todo-icon { font-size: 24px; }
+.todo-status { float: right; }
+.todo-title { font-size: 15px; font-weight: 600; color: var(--el-text-color-primary, #303133); margin-bottom: 6px; }
+.todo-desc { font-size: 12px; color: #909399; margin-bottom: 12px; line-height: 1.5; }
+.todo-count { font-size: 20px; font-weight: 700; color: var(--ch-accent, #4f46e5); margin-bottom: 8px; }
+.todo-arrow { font-size: 18px; color: #c0c4cc; }
+
+/* 进度看板 */
+.board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.progress-item { margin-bottom: 14px; }
+.progress-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+.progress-name { color: var(--el-text-color-regular, #606266); }
+.progress-pct { color: var(--el-text-color-primary, #303133); font-weight: 600; }
+.progress-bar { width: 100%; }
 </style>

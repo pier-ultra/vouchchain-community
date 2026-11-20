@@ -293,12 +293,24 @@ onMounted(async () => {
   transform: scale(1.05);
 }
 .community-qr img {
-  width: 86px; height: 86px; border-radius: 10px;
+  width: 120px; height: 120px; border-radius: 12px;
   border: 1px solid rgba(129, 140, 248, 0.25);
-  background: #fff; padding: 4px; box-sizing: border-box;
+  background: #fff; padding: 6px; box-sizing: border-box;
+  transition: transform 0.2s;
+}
+.community-qr:hover img {
+  transform: scale(1.05);
 }
 .community-qr span {
-  font-size: 11px; color: #6b7691;
+  font-size: 12px; color: #6b7691;
+}
+.community-qr::after {
+  content: '点击放大';
+  position: absolute;
+  bottom: -18px;
+  font-size: 10px;
+  color: #a5b4fc;
+  white-space: nowrap;
 }
 .showcase-foot {
   font-size: 11px; color: #6b7691; letter-spacing: 0.03em;

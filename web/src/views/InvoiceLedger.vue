@@ -9,6 +9,7 @@
         <el-button type="primary" @click="runMatchSelected" :disabled="!selectedIds.length">匹配选中</el-button>
         <el-button type="success" @click="runMatchAll">全量匹配</el-button>
         <el-button @click="runAuditSelected" :disabled="!selectedIds.length">四性审计</el-button>
+        <el-button type="primary" icon="Money" @click="oneClickPay" :disabled="!payableSelected.length">一键付款</el-button>
         <el-button type="warning" @click="exportLedger('xlsx')">导出 Excel</el-button>
         <el-button @click="exportLedger('md')">导出 Markdown</el-button>
       </div>
@@ -71,12 +72,34 @@
           <span v-else class="dim">—</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button link size="small" type="primary" @click="showMatchDetail(row)">匹配详情</el-button>
-          <el-button link size="small" @click="showAuditDetail(row)">四性审计</el-button>
-          <el-button link size="small" type="success" @click="runSingleMatch(row)">重新匹配</el-button>
-          <el-button link size="small" type="success" @click="runSingleAudit(row)">重新审计</el-button>
+          <el-dropdown @command="handleRowCommand">
+            <template #default>
+              <el-button link size="small" type="primary" @click="showMatchDetail(row)">
+                匹配详情
+              </el-button>
+            </template>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="audit" divided>
+                  <el-icon><Edit /></el-icon>
+                  四性审计
+                </el-dropdown-item>
+                <el-dropdown-item command="rematch" divided>
+                  <el-icon><Refresh /></el-icon>
+                  重新匹配
+                </el-dropdown-item>
+                <el-dropdown-item command="reaudit">
+                  <el-icon><Delete /></el-icon>
+                  重新审计
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+            <template #trigger="{ visible }">
+              <el-button link size="small" :icon="More" @click="visible = !visible" />
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -138,8 +161,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { api, type Row } from '../api'
+import { ElMessage, ElLoading } from 'element-plus'
+import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElButton } from 'element-plus'
+import { More, Edit, Delete, Refresh, Money } from '@element-plus/icons-vue'
 
 const loading = ref(false)
+let tableLoading: any = null
 const ledger = ref<Row[]>([])
 const selectedRows = ref<Row[]>([])
 const selectedIds = ref<number[]>([])
@@ -151,6 +178,9 @@ const matchLogs = ref<Row[]>([])
 const auditDrawer = ref(false)
 const auditInvoiceId = ref<number | null>(null)
 const auditLogs = ref<Row[]>([])
+
+// 一键付款：选中可付款的发票（已验真 + 已匹配）
+const payableSelected = ref<Row[]>([])
 
 const MATCH_STATUS_MAP: Record<string, string> = {
   matched: '已匹配',
@@ -179,16 +209,35 @@ async function load() {
 function handleSelection(rows: Row[]) {
   selectedRows.value = rows
   selectedIds.value = rows.map(r => r.id)
+  // 可付款：已验真、已匹配、未生成付款计划（payment_plan_id 为空 或已匹配但未付款）
+  payableSelected.value = rows.filter(r =>
+    r.verify_status === 'verified' &&
+    (r.match_status === 'matched' || r.match_status === 'pending') &&
+    !r.payment_plan_id
+  )
 }
 
 // 三方匹配
-async function runMatch(ids: number[]) {
-  const res = await api.invoiceMatchRun(ids)
-  if (res.code === 0) {
-    ElMessage.success(`匹配完成：${res.data?.length || 0} 笔`)
-    await load()
-  } else {
-    ElMessage.error(res.message || '匹配失败')
+async function runMatch(ids: number[], showToast = true) {
+  if (!ids.length) return
+  const target = tableLoading || ElLoading.service({
+    lock: true,
+    text: '处理中...',
+    spinner: 'el-icon-loading',
+    background: 'rgba(255, 255, 255, 0.7)'
+  })
+  try {
+    const res = await api.invoiceMatchRun(ids)
+    if (res.code === 0) {
+      if (showToast) ElMessage.success(`匹配完成：${res.data?.length || 0} 笔`)
+      await load()
+    } else {
+      ElMessage.error(res.message || '匹配失败')
+    }
+  } catch (e) {
+    ElMessage.error('匹配请求失败')
+  } finally {
+    target.close()
   }
 }
 
@@ -207,15 +256,29 @@ async function runSingleMatch(row: Row) {
 
 // 四性审计
 async function runAudit(ids: number[]) {
+  if (!ids.length) return
+  const target = ElLoading.service({
+    lock: true,
+    text: '审计中...',
+    spinner: 'el-icon-loading',
+    background: 'rgba(255, 255, 255, 0.7)'
+  })
+  let failed = 0
   for (const id of ids) {
     const res = await api.invoiceAuditRun(id)
     if (res.code !== 0) {
+      failed++
       ElMessage.error(`发票 #${id} 审计失败：${res.message}`)
-      return
     }
   }
-  ElMessage.success(`四性审计完成：${ids.length} 笔`)
-  await load()
+  target.close()
+  if (failed === 0) {
+    ElMessage.success(`四性审计完成：${ids.length} 笔`)
+    await load()
+  } else {
+    ElMessage.warning(`四性审计完成：成功 ${ids.length - failed} 笔，失败 ${failed} 笔`)
+    await load()
+  }
 }
 
 async function runAuditSelected() {
@@ -224,6 +287,49 @@ async function runAuditSelected() {
 
 async function runSingleAudit(row: Row) {
   await runAudit([row.id])
+}
+
+// 一键全流程：选中发票 → 生成付款计划 → 跳转应付台账打款
+async function oneClickPay() {
+  if (!payableSelected.value.length) {
+    ElMessage.warning('请先勾选已验真、已匹配且未生成付款计划的发票')
+    return
+  }
+  const ids = payableSelected.value.map(r => r.id)
+  const target = ElLoading.service({
+    lock: true,
+    text: '生成付款计划中...',
+    spinner: 'el-icon-loading',
+    background: 'rgba(255, 255, 255, 0.7)'
+  })
+  try {
+    const res = await api.payableGenerateFromInvoices({ invoiceIds: ids, days: 30 })
+    if (res.code === 0) {
+      ElMessage.success(`已为 ${res.data?.created || 0} 笔发票生成付款计划，跳转至应付台账登记打款`)
+      location.hash = '#/accounting'
+    } else {
+      ElMessage.error(res.message || '生成付款计划失败')
+    }
+  } catch (e) {
+    ElMessage.error('生成付款计划请求失败')
+  } finally {
+    target.close()
+  }
+}
+
+// 下拉菜单命令处理
+function handleRowCommand(command: string, row: Row) {
+  switch (command) {
+    case 'audit':
+      showAuditDetail(row)
+      break
+    case 'rematch':
+      runSingleMatch(row)
+      break
+    case 'reaudit':
+      runSingleAudit(row)
+      break
+  }
 }
 
 // 匹配详情

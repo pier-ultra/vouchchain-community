@@ -84,6 +84,13 @@
         </div>
       </el-header>
       <el-main>
+        <!-- 面包屑导航 -->
+        <div class="breadcrumb-wrap" v-if="route.path !== '/login' && route.path !== '/about'">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item :to="{ path: '/' }"><el-icon><HomeFilled /></el-icon> 首页</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="route.meta?.title">{{ route.meta.title }}</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
         <router-view />
       </el-main>
     </el-container>
@@ -95,9 +102,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { currentRole, roleLabels, visibleMenus, setSession, sessionVersion, type SessionRow } from '../rbac'
-import { menuGroups, groupForPath } from '../menu'
+import { menuGroups, groupForPath, titleForPath } from '../menu'
 import { api, type NotificationRow, type LegalEntityRow } from '../api'
 import { useTheme } from '../composables/useTheme'
+import { ElBreadcrumb, ElBreadcrumbItem, ElDivider, ElIcon, ElButton } from 'element-plus'
+import { HomeFilled, Setting } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -352,6 +361,11 @@ function logout() {
   width: 3px; height: 15px;
   border-radius: 2px;
   background: var(--ch-accent);
+}
+.breadcrumb-wrap {
+  padding: 12px 24px;
+  background: var(--ch-surface-2);
+  border-bottom: 1px solid var(--ch-line-soft);
 }
 .user {
   display: flex;

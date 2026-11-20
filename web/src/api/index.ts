@@ -389,7 +389,14 @@ export interface Obligation {
     Object.entries(params || {}).forEach(([k, v]) => { if (v) q.set(k, String(v)) })
     return `/api/audit-log/export${q.toString() ? '?' + q.toString() : ''}`
   },
-  // ---------- 每日工作台 ----------
+  // ---------- 待办中心（聚合入口） ----------
+  todoList: () =>
+    http.get<never, ApiResult<TodoListResult>>('/todo'),
+  // 一键全流程：从指定发票直接生成付款计划（发票→付款直通车）
+  payableGenerateFromInvoices: (d: { invoiceIds: number[]; days?: number }) =>
+    http.post<never, ApiResult<{ created: number; skipped: number }>>('/payables/from-invoices', d),
+
+// ---------- 每日工作台 ----------
   // 聚合概览（本周关注 + 进行中追踪 + 下一步建议 + 最近晨/晚总结）
   dailyOverview: () => http.get<never, ApiResult<{ overview: any; lastBrief: { kind: string; text: string; at: string } | null }>>('/daily'),
   // 生成一次晨报 / 晚间总结（主动触发，后端会 WS 广播给在线页面）
@@ -1186,4 +1193,20 @@ export interface AuditLogRow {
   check_detail: Record<string, unknown>
   operator: string
   created_at: string
+}
+
+// 待办中心接口类型（定义在 api 对象外部，避免破坏对象字面量结构）
+export interface TodoItem {
+  id: string
+  title: string
+  desc: string
+  type: 'invoice' | 'contract' | 'approval' | 'journal' | 'payable'
+  status: 'pending' | 'urgent' | 'overdue'
+  count: number
+  url: string
+  icon: string
+}
+export interface TodoListResult {
+  list: TodoItem[]
+  total: number
 }

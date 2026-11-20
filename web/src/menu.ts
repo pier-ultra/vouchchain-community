@@ -17,6 +17,14 @@ export interface MenuGroup {
 
 export const menuGroups: MenuGroup[] = [
   {
+    key: 'grp-common', title: '常用功能', icon: 'Star',
+    items: [
+      { path: '/dashboard', title: '工作概览', icon: 'Dashboard' },
+      { path: '/invoice-ledger', title: '发票台账', icon: 'Connection' },
+      { path: '/accounting', title: '应付与做账', icon: 'Coin' },
+    ],
+  },
+  {
     key: 'grp-contract', title: '合同工作台', icon: 'FolderOpened',
     items: [
       { path: '/contracts', title: '合同台账', icon: 'Document' },
@@ -42,13 +50,11 @@ export const menuGroups: MenuGroup[] = [
     key: 'grp-finance', title: '发票与财务', icon: 'Coin',
     items: [
       { path: '/invoices', title: '发票中心', icon: 'Tickets' },
-      { path: '/invoice-ledger', title: '发票台账（三方匹配+四性归档）', icon: 'Connection' },
       { path: '/invoice-class', title: '发票分类', icon: 'Collection' },
       { path: '/expense', title: '费控管理', icon: 'Wallet' },
       { path: '/skills', title: 'AI 技能', icon: 'MagicStick' },
       { path: '/revrec', title: '收入确认', icon: 'Coin' },
       { path: '/seals', title: '用印管理', icon: 'Stamp' },
-      { path: '/accounting', title: '应付与做账', icon: 'Coin' },
       { path: '/archive-schedules', title: '归档调度', icon: 'Timer' },
       { path: '/long-term', title: '长期保存(国密)', icon: 'Lock' },
     ],
@@ -72,6 +78,11 @@ export const menuGroups: MenuGroup[] = [
       { path: '/dengbao', title: '等保证据', icon: 'Stamp' },
       { path: '/audit-log', title: '审计日志', icon: 'Memo' },
       { path: '/api-docs', title: '接口文档', icon: 'Document' },
+    ],
+  },
+  {
+    key: 'grp-about', title: '关于我们', icon: 'InfoFilled',
+    items: [
       { path: '/about', title: '关于我们', icon: 'InfoFilled' },
     ],
   },
