@@ -45,6 +45,7 @@ const router = createRouter({
         { path: 'duban', component: () => import('../views/Duban.vue'), meta: { title: '公文督办' } },
         { path: 'audit-log', component: () => import('../views/AuditLog.vue'), meta: { title: '审计日志' } },
         { path: 'api-docs', component: () => import('../views/ApiDocs.vue'), meta: { title: '接口文档' } },
+        { path: 'about', component: () => import('../views/AboutUs.vue'), meta: { title: '关于我们' } },
       ],
     },
   ],

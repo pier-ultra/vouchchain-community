@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
+	"os/exec"
 
 	_ "github.com/gogf/gf/contrib/drivers/dm/v2"     // 注册达梦 DM8 驱动（纯 Go，Oracle 系方言）
 	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"  // 注册 MySQL 驱动（纯 Go，兼容 TiDB/OceanBase/GreatSQL）
@@ -68,6 +72,54 @@ func serveFrontend(s *ghttp.Server) {
 	})
 }
 
+
+// getLocalIpAddress 获取本机局域网IPv4地址（跳过回环地址 127.0.0.1）
+// 优先返回 RFC 1918 私网段：10.x.x.x、172.16-31.x.x、192.168.x.x
+// 若无私网段，回退首个非回环 IPv4
+func getLocalIpAddress() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+	var fallback string
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			ip4 := ipnet.IP.To4()
+			if ip4 == nil {
+				continue
+			}
+			ipStr := ip4.String()
+			// 优先匹配常见局域网段
+			if isPrivateIPv4(ip4) {
+				return ipStr, nil
+			}
+			if fallback == "" {
+				fallback = ipStr
+			}
+		}
+	}
+	if fallback != "" {
+		return fallback, nil
+	}
+	return "", fmt.Errorf("无法获取本机 IPv4 地址")
+}
+
+// isPrivateIPv4 判断是否为 RFC 1918 私网地址
+func isPrivateIPv4(ip net.IP) bool {
+	// 10.0.0.0/8
+	if ip[0] == 10 {
+		return true
+	}
+	// 172.16.0.0/12  (172.16 - 172.31)
+	if ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31 {
+		return true
+	}
+	// 192.168.0.0/16
+	if ip[0] == 192 && ip[1] == 168 {
+		return true
+	}
+	return false
+}
 func main() {
 	// 零配置双击即跑：当前目录无 config.yml/config.yaml 时自动生成默认配置（SQLite + devMode），
 	// 并预建 data/ 目录（SQLite 默认库路径）。
@@ -471,5 +523,27 @@ func main() {
 			g.Log().Infof(ctx, "[invoice-class] 已种子 %d 条分类规则", n)
 		}
 	}()
+	
+// === 自动打开浏览器逻辑 ===
+	if runtime.GOOS == "windows" {
+		ip, err := getLocalIpAddress()
+		url := "http://localhost:8000"
+		if err == nil {
+			url = fmt.Sprintf("http://%s:8000", ip)
+			g.Log().Infof(context.Background(), "[browser] 成功获取本地 IP: %s，尝试自动打开浏览器到 %s", ip, url)
+		} else {
+			g.Log().Warningf(context.Background(), "[browser] 无法获取本地 IP，将尝试使用 localhost: %v", err)
+		}
+		// Windows 官方推荐：rundll32.exe url.dll,FileProtocolHandler <url>
+		// 无需 cmd/powershell 中转，最兼容、最可靠
+		exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url).Run()
+	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		// Linux/macOS 同样使用 curl 或 open，但为简化，保持 localhost
+		g.Log().Infof(context.Background(), "[browser] 非 Windows 系统，使用 localhost: http://localhost:8000")
+		exec.Command("open", "http://localhost:8000").Run() // macOS
+		// Linux 下通常用 xdg-open
+		// exec.Command("xdg-open", "http://localhost:8000").Run()
+	}
+	// === 自动打开浏览器逻辑结束 ===
 	s.Run()
 }

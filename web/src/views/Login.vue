@@ -20,18 +20,17 @@
           </div>
         </div>
         <div class="showcase-community">
-          <div class="community-qr">
-            <img src="/community/qrcode-qqgroup.jpg" alt="QQ 群：VouchChain 开源社区" title="QQ 群：VouchChain 合同与履约中枢 · 开源社区" />
-            <span>QQ 群 · 开源社区</span>
-          </div>
-          <div class="community-qr">
-            <img src="/community/qrcode-wechat-personal.jpg" alt="作者微信" title="微信：添加作者，拉你进 VouchChain 社区版交流群" />
-            <span>微信 · 拉你进群</span>
+          <div class="community-qr" v-for="qr in qrList" :key="qr.src" @click="qrModalRef.value?.openQr(qr)">
+            <img :src="qr.src" :alt="qr.alt" :title="qr.caption" />
+            <span>{{ qr.caption }}</span>
           </div>
         </div>
         <div class="showcase-foot">© 2026 VouchChain · 企业内部合规平台</div>
       </div>
     </section>
+
+    <!-- 二维码放大模态框 -->
+    <QrCodeModal ref="qrModalRef" title="扫码加入" :qr-list="qrList" />
 
     <!-- 右：登录表单 -->
     <section class="login-panel">
@@ -92,6 +91,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { roleLabels, setSession, type Role } from '../rbac'
 import { api, type AuthConfigRow } from '../api'
+import QrCodeModal from '../components/QrCodeModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -103,6 +103,21 @@ const cfg = ref<AuthConfigRow>({
 })
 const tokenInput = ref('')
 const verifying = ref(false)
+
+// 二维码模态框
+const qrModalRef = ref<InstanceType<typeof QrCodeModal> | null>(null)
+const qrList = ref([
+  {
+    src: '/community/qrcode-qqgroup.jpg',
+    alt: 'QQ 群：VouchChain 开源社区',
+    caption: 'QQ 群 · VouchChain 开源社区'
+  },
+  {
+    src: '/community/qrcode-wechat-personal.jpg',
+    alt: '作者微信',
+    caption: '微信 · 添加作者拉你进群'
+  }
+])
 
 async function loadConfig() {
   try {
@@ -271,6 +286,11 @@ onMounted(async () => {
 }
 .community-qr {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.community-qr:hover {
+  transform: scale(1.05);
 }
 .community-qr img {
   width: 86px; height: 86px; border-radius: 10px;

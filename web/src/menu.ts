@@ -72,6 +72,7 @@ export const menuGroups: MenuGroup[] = [
       { path: '/dengbao', title: '等保证据', icon: 'Stamp' },
       { path: '/audit-log', title: '审计日志', icon: 'Memo' },
       { path: '/api-docs', title: '接口文档', icon: 'Document' },
+      { path: '/about', title: '关于我们', icon: 'InfoFilled' },
     ],
   },
 ]
