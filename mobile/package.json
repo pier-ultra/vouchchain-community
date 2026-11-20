@@ -25,6 +25,34 @@
     "@dcloudio/uni-cli-shared": "3.0.0-alpha-5030620261106001",
     "@dcloudio/uni-stacktracey": "3.0.0-alpha-5030620261106001",
     "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5030620261106001",
-    "vite": "^6.0.0"
+    "adm-zip": "^0.6.1",
+    "cookie": "^2.0.2",
+    "jpeg-js": "^0.4.4",
+    "postcss": "^8.5.33",
+    "qs": "^6.17.1",
+    "send": "^1.2.1",
+    "source-map-js": "^1.2.4",
+    "vite": "^6.0.0",
+    "ws": "^8.23.0"
+  },
+  "overrides": {
+    "ws": "^8.23.0",
+    "qs": "^6.17.1",
+    "postcss": "^8.5.33",
+    "postcss-selector-parser": "^7.2.1",
+    "adm-zip": "^0.6.1",
+    "jpeg-js": "^0.4.4",
+    "source-map-js": "^1.2.4",
+    "cookie": "^2.0.2",
+    "send": "^1.2.1",
+    "@intlify/core-base": "^11.4.23",
+    "@intlify/message-resolver": "^9.1.11",
+    "@babel/core": "^8.1.2",
+    "@vue/server-renderer": "^3.5.45",
+    "esbuild": "^0.28.2",
+    "phin": "^3.7.1",
+    "express": "^5.3.0",
+    "body-parser": "^2.4.0",
+    "path-to-regexp": "^9.0.0"
   }
 }
