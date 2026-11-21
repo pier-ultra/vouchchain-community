@@ -8,9 +8,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
-	"os/exec"
 
 	_ "github.com/gogf/gf/contrib/drivers/dm/v2"     // 注册达梦 DM8 驱动（纯 Go，Oracle 系方言）
 	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"  // 注册 MySQL 驱动（纯 Go，兼容 TiDB/OceanBase/GreatSQL）
@@ -71,7 +71,6 @@ func serveFrontend(s *ghttp.Server) {
 		fileServer.ServeHTTP(r.Response.BufferWriter, r.Request)
 	})
 }
-
 
 // getLocalIpAddress 获取本机局域网IPv4地址（跳过回环地址 127.0.0.1）
 // 优先返回 RFC 1918 私网段：10.x.x.x、172.16-31.x.x、192.168.x.x
@@ -179,6 +178,11 @@ func main() {
 	// 自生成 OpenAPI + Scalar 接口文档（公开可访问；devMode 旁路鉴权，生产可另行收紧）
 	s.BindHandler("GET:/openapi.json", controller.OpenApiSpec)
 	s.BindHandler("GET:/scalar", controller.ScalarPage)
+
+	// favicon.ico：返回 204 No Content，避免浏览器反复请求 404
+	s.BindHandler("GET:/favicon.ico", func(r *ghttp.Request) {
+		r.Response.WriteStatus(http.StatusNoContent)
+	})
 
 	s.Group("/api", func(group *ghttp.RouterGroup) {
 		group.Middleware(middleware.Rbac())           // RBAC：角色→操作权限（AC6.7 授权半边）
@@ -430,6 +434,7 @@ func main() {
 		group.GET("/revrec/ar-cr-diff", controller.RevRecArCrDiff)
 		group.GET("/revrec/monthly", controller.RevRecMonthly)
 		group.GET("/revrec/export", controller.RevRecExport) // R-A14 审计口径 Excel 导出
+		group.GET("/todo", controller.TodoList)              // 待办中心聚合入口
 		group.POST("/seals", controller.SealCreate)
 		group.GET("/seals", controller.SealList)
 		group.PUT("/seals/{id}/status", controller.SealStatus)
@@ -523,8 +528,8 @@ func main() {
 			g.Log().Infof(ctx, "[invoice-class] 已种子 %d 条分类规则", n)
 		}
 	}()
-	
-// === 自动打开浏览器逻辑 ===
+
+	// === 自动打开浏览器逻辑 ===
 	if runtime.GOOS == "windows" {
 		ip, err := getLocalIpAddress()
 		url := "http://localhost:8000"

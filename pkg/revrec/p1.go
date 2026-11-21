@@ -211,8 +211,8 @@ func MonthlyView(ctx context.Context) ([]MonthlyLine, error) {
 		kind string
 	}{
 		{`SELECT period, SUM(total) AS amt FROM revrec_confirm WHERE status='confirmed' GROUP BY period`, "c"},
-		{`SELECT to_char(settled_at,'YYYY-MM') AS period, SUM(amount) AS amt FROM revrec_settlement GROUP BY 1`, "s"},
-		{`SELECT to_char(received_at,'YYYY-MM') AS period, SUM(amount) AS amt FROM revrec_receipt GROUP BY 1`, "r"},
+		{`SELECT strftime('%Y-%m', settled_at) AS period, SUM(amount) AS amt FROM revrec_settlement GROUP BY 1`, "s"},
+		{`SELECT strftime('%Y-%m', received_at) AS period, SUM(amount) AS amt FROM revrec_receipt GROUP BY 1`, "r"},
 	}
 	for _, item := range q {
 		rows, err := g.DB().GetAll(ctx, item.sql)

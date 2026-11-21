@@ -133,7 +133,7 @@ func currentPeriod() string {
 // deptCategorySpent 部门+月份+分类 的切片已用
 func deptCategorySpent(ctx context.Context, deptID int64, period, category string) float64 {
 	v, err := g.DB().GetOne(ctx,
-		`SELECT COALESCE(SUM(amount),0) AS s FROM expense_split WHERE dept_id=? AND expense_type=? AND to_char(created_at,'YYYY-MM')=?`,
+		`SELECT COALESCE(SUM(amount),0) AS s FROM expense_split WHERE dept_id=? AND expense_type=? AND strftime('%Y-%m', created_at)=?`,
 		deptID, category, period)
 	if err != nil || v == nil {
 		return 0
