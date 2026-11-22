@@ -107,6 +107,22 @@ type ModelConfig struct {
 	UpdatedAt   time.Time   `json:"updatedAt"`
 }
 
+// McpServer 外部 MCP server 连接配置（MCP Client：系统作为客户端去连接外部 server）
+type McpServer struct {
+	Id           int64     `json:"id"`
+	Name         string    `json:"name"`
+	Endpoint     string    `json:"endpoint"`
+	Token        string    `json:"token"` // 敏感：存 enc:v1: 密文，接口返回脱敏
+	ExtraHeaders string    `json:"extraHeaders"`
+	Description  string    `json:"description"`
+	Enabled      bool      `json:"enabled"`
+	ToolCount    int       `json:"toolCount"`  // 最近拉取工具数（页面展示）
+	LastStatus   string    `json:"lastStatus"` // idle / ok / error / pending
+	LastError    string    `json:"lastError"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
 // Contract 合同台账（产品① 合同线核心实体）
 type Contract struct {
 	Id           int64     `json:"id"`

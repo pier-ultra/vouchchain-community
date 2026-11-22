@@ -45,6 +45,8 @@ var menuCatalog = []MenuDef{
 	{"/dengbao", "等保证据", "治理与配置", "GET /api/dengbao/retention/status", []string{"admin", "legal", "viewer"}},
 	{"/duban", "公文督办", "审查与签署", "GET /api/duban/tasks", []string{"admin", "legal", "business", "viewer"}},
 	{"/model-configs", "模型配置", "治理与配置", "POST /api/model-config", []string{"admin"}},
+	{"/mcp-servers", "MCP 客户端", "治理与配置", "POST /api/mcp-servers", []string{"admin"}},
+	{"/about", "关于我们", "治理与配置", "GET /", []string{"admin", "legal", "business", "viewer"}},
 }
 
 var actionCatalog = []string{

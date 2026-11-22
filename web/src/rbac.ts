@@ -49,10 +49,10 @@ export function currentRole(): Role {
 
 // 兜底基线（与服务端 middleware/menu.go 的内置角色表一致）
 export const roleMenus: Record<string, string[]> = {
-  admin: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/sign', '/approvals', '/party-profiles', '/invoices', '/accounting', '/model-configs', '/organization', '/master-data', '/archive-schedules', '/compliance', '/mdm-dedup', '/roles', '/isolation', '/identity-sync'],
-  legal: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/sign', '/approvals', '/party-profiles', '/invoices', '/accounting', '/master-data', '/archive-schedules', '/compliance', '/mdm-dedup', '/identity-sync'],
-  business: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/approvals', '/party-profiles', '/invoices', '/accounting'],
-  viewer: ['/contracts', '/query'],
+  admin: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/sign', '/approvals', '/party-profiles', '/invoices', '/accounting', '/model-configs', '/mcp-servers', '/organization', '/master-data', '/archive-schedules', '/compliance', '/mdm-dedup', '/roles', '/isolation', '/identity-sync', '/about'],
+  legal: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/sign', '/approvals', '/party-profiles', '/invoices', '/accounting', '/master-data', '/archive-schedules', '/compliance', '/mdm-dedup', '/identity-sync', '/about'],
+  business: ['/contracts', '/generate', '/extraction', '/obligations', '/query', '/approvals', '/party-profiles', '/invoices', '/accounting', '/about'],
+  viewer: ['/contracts', '/query', '/about'],
 }
 
 export const roleActions: Record<string, string[]> = {

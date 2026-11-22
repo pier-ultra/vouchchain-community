@@ -75,6 +75,7 @@ export const menuGroups: MenuGroup[] = [
       { path: '/isolation', title: '强隔离策略', icon: 'Hide' },
       { path: '/identity-sync', title: '身份同步', icon: 'UserFilled' },
       { path: '/model-configs', title: '模型配置', icon: 'Setting' },
+      { path: '/mcp-servers', title: 'MCP 客户端', icon: 'Connection' },
       { path: '/dengbao', title: '等保证据', icon: 'Stamp' },
       { path: '/audit-log', title: '审计日志', icon: 'Memo' },
       { path: '/api-docs', title: '接口文档', icon: 'Document' },

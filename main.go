@@ -25,8 +25,10 @@ import (
 	"vouchchain/internal/mcpserver"
 	"vouchchain/internal/middleware"
 	"vouchchain/internal/preflight"
+	"vouchchain/pkg/agent"
 	"vouchchain/pkg/invoiceclass"
 	"vouchchain/pkg/kb"
+	"vouchchain/pkg/mcpclient"
 )
 
 // 前端静态资源（Vue3 + Element Plus 构建产物 web/dist）内嵌进二进制，实现单文件自包含分发。
@@ -194,6 +196,9 @@ func main() {
 		group.POST("/auth/callback", controller.AuthCallback)
 		group.GET("/model-config", controller.ModelConfigList)
 		group.POST("/model-config", controller.ModelConfigCreate)
+		group.POST("/model-config/test", controller.ModelConfigTest)
+		group.PUT("/model-config/{id}", controller.ModelConfigUpdate)
+		group.DELETE("/model-config/{id}", controller.ModelConfigDelete)
 		group.GET("/contracts", controller.ContractList)
 		group.GET("/contracts/{id}", controller.ContractDetail)
 		group.POST("/contracts", controller.ContractCreate)
@@ -399,6 +404,14 @@ func main() {
 		group.GET("/mcp/status", func(r *ghttp.Request) {
 			r.Response.WriteJsonExit(g.Map{"code": 0, "data": mcpserver.Status()})
 		})
+		// MCP Client：外部 MCP server 连接管理（CRUD + 测试 + 工具预览 + 启停）
+		group.GET("/mcp-servers", controller.McpServerList)
+		group.POST("/mcp-servers", controller.McpServerCreate)
+		group.PUT("/mcp-servers/{id}", controller.McpServerUpdate)
+		group.DELETE("/mcp-servers/{id}", controller.McpServerDelete)
+		group.PUT("/mcp-servers/{id}/toggle", controller.McpServerToggle)
+		group.POST("/mcp-servers/test", controller.McpServerTest)
+		group.GET("/mcp-servers/{id}/tools", controller.McpServerTools)
 		// 法律条款知识库检索（向量+重排，欠费时关键词降级）
 		group.GET("/kb/search", controller.KBSearch)
 		// 发票自动分类（规则配置 + AI 兜底 + 统计）
@@ -510,6 +523,13 @@ func main() {
 	controller.StartArchiveScheduler()
 	// 每日工作台：08:00 晨间简报 / 21:00 晚间总结（进程内单实例自托管，防同日重复）
 	controller.StartDailyScheduler()
+	// MCP Client：注册外部工具 provider + 加载已启用的外部 MCP 连接（动态注册进对话工具表）
+	agent.SetExternalToolProvider(mcpclient.AllChatTools)
+	go func() {
+		ctx := context.Background()
+		mcpclient.Refresh(ctx)
+		g.Log().Infof(ctx, "[mcpclient] 已加载外部 MCP 连接，注册工具数：%d", mcpclient.ToolCount())
+	}()
 	// 法律条款知识库：空库时种子民法典条款；后台补向量（embedding 服务可用时）
 	go func() {
 		ctx := context.Background()

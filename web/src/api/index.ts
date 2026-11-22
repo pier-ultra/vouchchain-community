@@ -112,6 +112,29 @@ export interface ModelConfig {
   updatedAt: string
 }
 
+// 外部 MCP server 连接（MCP Client）
+export interface McpServer {
+  id: number
+  name: string
+  endpoint: string
+  token: string // 接口返回脱敏值；录入走表单，服务端 AES-256-GCM 加密入库
+  extraHeaders: string // JSON 字符串，如 {"X-Org":"xxx"}
+  description: string
+  enabled: boolean
+  toolCount: number
+  lastStatus: string // idle / ok / error / pending
+  lastError: string
+  createdAt: string
+  updatedAt: string
+}
+
+// 外部 MCP 工具预览
+export interface McpToolInfo {
+  name: string
+  description: string
+  required: string[]
+}
+
 export interface PipelineStage {
   key: string
   label: string
@@ -209,6 +232,17 @@ export interface Obligation {
   deleteContract: (id: number) => http.delete<never, ApiResult>(`/contracts/${id}`),
   modelConfigs: () => http.get<never, ApiResult<ModelConfig[]>>('/model-config'),
   createModelConfig: (d: Partial<ModelConfig>) => http.post<never, ApiResult>('/model-config', d),
+  updateModelConfig: (id: number, d: Partial<ModelConfig>) => http.put<never, ApiResult>(`/model-config/${id}`, d),
+  deleteModelConfig: (id: number) => http.delete<never, ApiResult>(`/model-config/${id}`),
+  testModelConfig: (d: Partial<ModelConfig> & { id?: number }) => http.post<never, ApiResult<{ elapsedMs?: number; reply?: string; dim?: number; httpStatus?: number }>>('/model-config/test', d),
+  // MCP Client：外部 MCP server 连接管理
+  mcpServers: () => http.get<never, ApiResult<McpServer[]>>('/mcp-servers'),
+  createMcpServer: (d: Partial<McpServer>) => http.post<never, ApiResult<{ id: number }>>('/mcp-servers', d),
+  updateMcpServer: (id: number, d: Partial<McpServer>) => http.put<never, ApiResult>(`/mcp-servers/${id}`, d),
+  deleteMcpServer: (id: number) => http.delete<never, ApiResult>(`/mcp-servers/${id}`),
+  toggleMcpServer: (id: number, enabled: boolean) => http.put<never, ApiResult>(`/mcp-servers/${id}/toggle`, { enabled }),
+  testMcpServer: (d: Partial<McpServer> & { id?: number }) => http.post<never, ApiResult<{ tools: number }>>('/mcp-servers/test', d),
+  mcpServerTools: (id: number) => http.get<never, ApiResult<McpToolInfo[]>>(`/mcp-servers/${id}/tools`),
   // 合同上传 + AI 抽取状态机（AC1.1-1.6）；template 为 AC1.8 模板；versionOf 为 AC6.2 版本基线
   uploadContractFile: (file: File, template?: string, versionOf?: number) => {
     const fd = new FormData()

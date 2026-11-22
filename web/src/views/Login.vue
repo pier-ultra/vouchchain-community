@@ -20,7 +20,7 @@
           </div>
         </div>
         <div class="showcase-community">
-          <div class="community-qr" v-for="qr in qrList" :key="qr.src" @click="qrModalRef.value?.openQr(qr)">
+          <div class="community-qr" v-for="qr in qrList" :key="qr.src" @click="qrModalRef?.openQr(qr)">
             <img :src="qr.src" :alt="qr.alt" :title="qr.caption" />
             <span>{{ qr.caption }}</span>
           </div>
@@ -287,25 +287,17 @@ onMounted(async () => {
 .community-qr {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   cursor: pointer;
-  transition: transform 0.2s ease;
-}
-.community-qr:hover {
-  transform: scale(1.05);
 }
 .community-qr img {
   width: 120px; height: 120px; border-radius: 12px;
   border: 1px solid rgba(129, 140, 248, 0.25);
   background: #fff; padding: 6px; box-sizing: border-box;
-  transition: transform 0.2s;
-}
-.community-qr:hover img {
-  transform: scale(1.05);
 }
 .community-qr span {
   font-size: 12px; color: #6b7691;
 }
 .community-qr::after {
-  content: '点击放大';
+  content: '点击查看大图';
   position: absolute;
   bottom: -18px;
   font-size: 10px;

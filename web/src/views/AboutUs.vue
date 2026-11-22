@@ -75,11 +75,11 @@
         <div class="community-grid">
           <el-card class="community-card" shadow="never">
             <div class="community-item">
-              <div class="qr-wrapper" @click="qrModalRef.value?.openQr(communityQrs[0])">
+              <div class="qr-wrapper" @click="qrModalRef?.openQr(communityQrs[0])">
                 <img :src="communityQrs[0].src" :alt="communityQrs[0].alt" class="community-qr-img" />
                 <div class="qr-overlay">
                   <el-icon><ZoomIn /></el-icon>
-                  <span>点击放大</span>
+                  <span>点击查看大图</span>
                 </div>
               </div>
               <div class="community-info">
@@ -90,11 +90,11 @@
           </el-card>
           <el-card class="community-card" shadow="never">
             <div class="community-item">
-              <div class="qr-wrapper" @click="qrModalRef.value?.openQr(communityQrs[1])">
+              <div class="qr-wrapper" @click="qrModalRef?.openQr(communityQrs[1])">
                 <img :src="communityQrs[1].src" :alt="communityQrs[1].alt" class="community-qr-img" />
                 <div class="qr-overlay">
                   <el-icon><ZoomIn /></el-icon>
-                  <span>点击放大</span>
+                  <span>点击查看大图</span>
                 </div>
               </div>
               <div class="community-info">
@@ -404,10 +404,6 @@ const qrModalRef = ref<InstanceType<typeof QrCodeModal> | null>(null)
   background: #fff;
   padding: 8px;
   box-sizing: border-box;
-  transition: transform 0.2s;
-}
-.qr-wrapper:hover .community-qr-img {
-  transform: scale(1.02);
 }
 .qr-overlay {
   position: absolute;

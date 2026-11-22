@@ -354,15 +354,19 @@ async function send() {
   messages.value.push({ id: Date.now(), role: 'user', content: text, tool_trace: '', created_at: '' } as ChatMessageRow)
   scrollBottom()
 
-  // 流式优先：SSE 逐 token 渲染；失败回退同步接口
+  // 流式优先：SSE 逐 token 渲染；失败/超时回退同步接口
   const streamingMsg = reactive({ id: Date.now() + 9, role: 'assistant', content: '', tool_trace: '', created_at: '' } as ChatMessageRow)
   let streamed = false
+  const sseCtrl = new AbortController()
+  const SSE_TIMEOUT_MS = 60000 // 60s 内未完成流式则中止并回退同步，避免前端永久 pending
+  const sseStart = Date.now()
   try {
     const token = localStorage.getItem('ch_token') || ''
     const resp = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-User-Role': localStorage.getItem('ch_role') || '', 'X-User-Name': localStorage.getItem('ch_user') || '' },
       body: JSON.stringify({ sessionId: currentId.value || undefined, message: text }),
+      signal: sseCtrl.signal,
     })
     if (resp.ok && resp.headers.get('content-type')?.includes('text/event-stream')) {
       streamed = true
@@ -373,7 +377,23 @@ async function send() {
       let buf = ''
       let eventName = 'message'
       outer: for (;;) {
-        const { done, value } = await reader.read()
+        // 流式读取防挂起：每次 read 最多等 5s，无数据则检查总超时
+        // （SSE 长连接在某些浏览器/网络下可能只推首帧后静默，需超时兜底回退同步接口）
+        const r = await Promise.race([
+          reader.read(),
+          new Promise((res) => setTimeout(() => res({ done: true, __timeout: true }), 5000)),
+        ]) as { done: boolean; value?: Uint8Array; __timeout?: boolean }
+        if (r.__timeout) {
+          if (Date.now() - sseStart > SSE_TIMEOUT_MS) {
+            sseCtrl.abort()
+            streamed = false
+            const idx = messages.value.indexOf(streamingMsg)
+            if (idx >= 0) messages.value.splice(idx, 1)
+            break
+          }
+          continue
+        }
+        const { done, value } = r
         if (done) break
         buf += decoder.decode(value, { stream: true })
         // 解析 SSE 帧（event/data 对）

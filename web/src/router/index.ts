@@ -24,6 +24,7 @@ const router = createRouter({
         { path: 'invoice-ledger', component: () => import('../views/InvoiceLedger.vue'), meta: { title: '发票台账（三方匹配+四性归档）' } },
         { path: 'accounting', component: () => import('../views/Accounting.vue'), meta: { title: '应付与做账' } },
         { path: 'model-configs', component: () => import('../views/ModelConfigs.vue'), meta: { title: '模型配置' } },
+        { path: 'mcp-servers', component: () => import('../views/McpServers.vue'), meta: { title: 'MCP 客户端' } },
         { path: 'organization', component: () => import('../views/Organization.vue'), meta: { title: '组织与主体' } },
         { path: 'master-data', component: () => import('../views/MasterData.vue'), meta: { title: '主数据' } },
         { path: 'archive-schedules', component: () => import('../views/ArchiveSchedule.vue'), meta: { title: '归档调度' } },

@@ -37,8 +37,29 @@ const chatSystemPromptTpl = `你是 VouchChain（合同与财务协同系统）�
 
 当前用户：%s（角色 %s）。所有以该用户身份执行的操作都会审计留痕。`
 
+// externalToolProvider 外部工具提供者（MCP Client 注册）：返回追加到内置工具之后的外部工具。
+// 用回调而非直接引用，避免 agent → mcpclient 循环依赖；mcpclient 启动时调用 SetExternalToolProvider。
+var externalToolProvider func() []ChatTool
+
+// SetExternalToolProvider 注册外部工具提供者（MCP Client 用）
+func SetExternalToolProvider(p func() []ChatTool) {
+	externalToolProvider = p
+}
+
 // ChatTools 全部注册工具（供 WithTools 与执行两处使用同一份清单）
+// 返回：内置工具 + 外部 MCP 工具（mcpclient 动态注册）
 func ChatTools() []ChatTool {
+	tools := builtinTools()
+	if externalToolProvider != nil {
+		if ext := externalToolProvider(); len(ext) > 0 {
+			tools = append(tools, ext...)
+		}
+	}
+	return tools
+}
+
+// builtinTools 内置工具清单（9 个）
+func builtinTools() []ChatTool {
 	return []ChatTool{
 		{
 			Name: "query_contracts",

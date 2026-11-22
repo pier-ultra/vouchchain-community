@@ -133,13 +133,20 @@ async function loadMe() {
 // ---------- 侧栏分组（18 项 → 5 个大条目） ----------
 const menuRef = ref<{ open?: (index: string) => void } | null>(null)
 const collapsed = ref(localStorage.getItem('ch_menu_collapsed') === '1')
+// 安全展开分组：element-plus 的 el-menu.open() 对「尚未注册的 index」会直接解构
+// subMenus.value[index].indexPath 抛错（menu.mjs open() 无 undefined 防御）。
+// 进入页面时子菜单可能还未完成注册（尤其最后一个分组 /about），故双 nextTick 等待，
+// 并以 try/catch 兜底，避免在菜单就绪前调用 open() 导致页面报错。
+function openGroup(k: string) {
+  if (!k || collapsed.value) return
+  nextTick(() => nextTick(() => {
+    try { menuRef.value?.open?.(k) } catch { /* 菜单未就绪：忽略时序竞争 */ }
+  }))
+}
 function toggleCollapse() {
   collapsed.value = !collapsed.value
   localStorage.setItem('ch_menu_collapsed', collapsed.value ? '1' : '0')
-  if (!collapsed.value) {
-    const k = groupForPath(route.path)
-    if (k) nextTick(() => menuRef.value?.open?.(k))
-  }
+  if (!collapsed.value) openGroup(groupForPath(route.path))
 }
 // 角色过滤后整组无可见子项就直接隐藏，不留下空的大条目
 const visibleGroups = computed(() => menuGroups
@@ -151,8 +158,7 @@ const defaultOpens = computed(() => {
 })
 // default-openeds 只在首次渲染生效，切页时显式展开当前分组
 watch(() => route.path, (p) => {
-  const k = groupForPath(p)
-  if (k && !collapsed.value) nextTick(() => menuRef.value?.open?.(k))
+  openGroup(groupForPath(p))
 }, { immediate: true })
 
 // ---------- K3 当前法人主体（顶栏全局切换）+ 递归含下级开关 ----------

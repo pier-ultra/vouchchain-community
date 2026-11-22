@@ -52,3 +52,15 @@ web/components.d.ts
 
 # mobile 预览截图（不入库）
 mobile/docs_prev/
+
+# ---------- 本地调试 / 巡检产物（不入库） ----------
+# 网页调试截图与全页面巡检截图
+web/*.png
+web/shots/
+# 本地构建发布产物
+releases/
+# 服务运行错误日志
+vc_run.err
+# 本地数据 seed 脚本（seed_model_config.py 含硬编码演示密钥，严禁入库）
+scripts/seed_model_config.py
+scripts/seed_sample_data.py

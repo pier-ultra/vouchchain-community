@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -60,6 +61,11 @@ func ModelConfigCreate(r *ghttp.Request) {
 		apiKey = enc
 	}
 	now := time.Now()
+	// extra_config 列为 NOT NULL：前端不传（null）时落 "{}"，避免约束失败
+	extraConfig := req.ExtraConfig
+	if extraConfig == nil {
+		extraConfig = "{}"
+	}
 	data := g.Map{
 		"name":         req.Name,
 		"category":     req.Category,
@@ -67,7 +73,7 @@ func ModelConfigCreate(r *ghttp.Request) {
 		"base_url":     req.BaseUrl,
 		"model_name":   req.ModelName,
 		"api_key":      apiKey,
-		"extra_config": req.ExtraConfig,
+		"extra_config": extraConfig,
 		"enabled":      req.Enabled,
 		"created_at":   now,
 		"updated_at":   now,
@@ -77,6 +83,234 @@ func ModelConfigCreate(r *ghttp.Request) {
 		return
 	}
 	r.Response.WriteJsonExit(g.Map{"code": 0, "message": "created"})
+}
+
+func ModelConfigUpdate(r *ghttp.Request) {
+	id := r.Get("id").Int64()
+	if id <= 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id required"})
+		return
+	}
+	var req entity.ModelConfig
+	if err := r.Parse(&req); err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	// API Key：若前端传了明文则加密；若传的是脱敏值(已加密存储/未配置)则不改动
+	apiKey := req.ApiKey
+	if apiKey != "" && !strings.HasPrefix(apiKey, "已加密存储") && !strings.HasPrefix(apiKey, "••••") && apiKey != "未配置" {
+		enc, err := cryptoutil.Encrypt(apiKey)
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+			return
+		}
+		apiKey = enc
+	} else {
+		// 不更新密钥
+		apiKey = ""
+	}
+	now := time.Now()
+	// extra_config 列为 NOT NULL：前端不传（null）时落 "{}"，避免约束失败
+	extraConfig := req.ExtraConfig
+	if extraConfig == nil {
+		extraConfig = "{}"
+	}
+	data := g.Map{
+		"name":         req.Name,
+		"category":     req.Category,
+		"provider":     req.Provider,
+		"base_url":     req.BaseUrl,
+		"model_name":   req.ModelName,
+		"extra_config": extraConfig,
+		"enabled":      req.Enabled,
+		"updated_at":   now,
+	}
+	if apiKey != "" {
+		data["api_key"] = apiKey
+	}
+	if _, err := g.DB().Model("model_config").Data(data).Where("id", id).Update(); err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	r.Response.WriteJsonExit(g.Map{"code": 0, "message": "updated"})
+}
+
+func ModelConfigDelete(r *ghttp.Request) {
+	id := r.Get("id").Int64()
+	if id <= 0 {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "id required"})
+		return
+	}
+	if _, err := g.DB().Model("model_config").Where("id", id).Delete(); err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	r.Response.WriteJsonExit(g.Map{"code": 0, "message": "deleted"})
+}
+
+// ModelConfigTest 模型连通性测试（不落库）：
+// - 传 id：测库里已保存的配置（密文解密后实测）
+// - 传完整配置（name/category/baseUrl/modelName/apiKey 明文）：测表单草稿，用于新增/编辑前验证
+// llm 做真实单轮生成；embedding 做真实 embeddings 调用；ocr/rerank/vector 做 HTTP 端点探测。
+func ModelConfigTest(r *ghttp.Request) {
+	var req entity.ModelConfig
+	if err := r.Parse(&req); err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
+		return
+	}
+	// 只传 id 时，从库里取已保存配置
+	if req.Id > 0 && req.BaseUrl == "" {
+		row, err := g.DB().Model("model_config").Where("id", req.Id).One()
+		if err != nil || row.IsEmpty() {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "配置不存在"})
+			return
+		}
+		req.Name = row["name"].String()
+		req.Category = row["category"].String()
+		req.Provider = row["provider"].String()
+		req.BaseUrl = row["base_url"].String()
+		req.ModelName = row["model_name"].String()
+		stored := row["api_key"].String()
+		if stored != "" {
+			plain, derr := cryptoutil.Decrypt(stored)
+			if derr != nil {
+				r.Response.WriteJsonExit(g.Map{"code": 1, "message": "密钥不可解密（未带 APP_AES_KEY 或密钥不匹配）：" + derr.Error()})
+				return
+			}
+			req.ApiKey = plain
+		}
+	}
+	if req.BaseUrl == "" {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "Base URL 不能为空"})
+		return
+	}
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	switch req.Category {
+	case "llm":
+		// 真实单轮对话：请模型只回复 OK
+		if req.ApiKey == "" {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "该配置未设置 API Key，无法实测"})
+			return
+		}
+		m, err := agent.NewOpenAIChatModel(ctx, req.BaseUrl, req.ModelName, req.ApiKey)
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "初始化模型失败：" + err.Error(), "data": g.Map{"elapsedMs": time.Since(start).Milliseconds()}})
+			return
+		}
+		out, err := agent.GenerateOnce(ctx, m, "请只回复 OK 两个字母")
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "调用失败：" + err.Error(), "data": g.Map{"elapsedMs": time.Since(start).Milliseconds()}})
+			return
+		}
+		r.Response.WriteJsonExit(g.Map{"code": 0, "message": "连通正常", "data": g.Map{
+			"elapsedMs": time.Since(start).Milliseconds(),
+			"reply":     truncModelTest(out, 80),
+		}})
+	case "embedding":
+		// 真实 embeddings 调用，返回向量维度
+		if req.ApiKey == "" {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "该配置未设置 API Key，无法实测"})
+			return
+		}
+		dim, err := probeEmbedding(ctx, req.BaseUrl, req.ModelName, req.ApiKey)
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "调用失败：" + err.Error(), "data": g.Map{"elapsedMs": time.Since(start).Milliseconds()}})
+			return
+		}
+		r.Response.WriteJsonExit(g.Map{"code": 0, "message": "连通正常", "data": g.Map{
+			"elapsedMs": time.Since(start).Milliseconds(),
+			"dim":       dim,
+		}})
+	default:
+		// ocr / rerank / vector：HTTP 端点探测（POST 最小 chat 请求，2xx 即可达）
+		status, body, err := probeEndpoint(ctx, req.BaseUrl, req.ModelName, req.ApiKey)
+		elapsed := time.Since(start).Milliseconds()
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "请求失败：" + err.Error(), "data": g.Map{"elapsedMs": elapsed}})
+			return
+		}
+		if status >= 400 {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": fmt.Sprintf("端点返回 HTTP %d：%s", status, truncModelTest(body, 200)), "data": g.Map{"elapsedMs": elapsed}})
+			return
+		}
+		r.Response.WriteJsonExit(g.Map{"code": 0, "message": fmt.Sprintf("端点可达（HTTP %d，业务协议未深测）", status), "data": g.Map{
+			"elapsedMs": elapsed,
+			"httpStatus": status,
+		}})
+	}
+}
+
+// probeEmbedding 调一次 embeddings，返回向量维度
+func probeEmbedding(ctx context.Context, baseUrl, model, apiKey string) (int, error) {
+	endpoint := strings.TrimRight(baseUrl, "/") + "/embeddings"
+	payload := map[string]interface{}{"model": model, "input": "connectivity-test"}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(string(body)))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode >= 400 {
+		return 0, fmt.Errorf("HTTP %d：%s", resp.StatusCode, truncModelTest(string(respBody), 200))
+	}
+	var parsed struct {
+		Data []struct {
+			Embedding []float64 `json:"embedding"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return 0, fmt.Errorf("响应解析失败：%v", err)
+	}
+	if len(parsed.Data) == 0 {
+		return 0, fmt.Errorf("响应中没有 embedding 数据")
+	}
+	return len(parsed.Data[0].Embedding), nil
+}
+
+// probeEndpoint 对 ocr/rerank/vector 做最小 POST 探测（OpenAI 兼容 chat 格式）
+func probeEndpoint(ctx context.Context, baseUrl, model, apiKey string) (int, string, error) {
+	endpoint := strings.TrimRight(baseUrl, "/") + "/chat/completions"
+	payload := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]string{{"role": "user", "content": "ping"}},
+		"max_tokens": 1,
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(string(body)))
+	if err != nil {
+		return 0, "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return resp.StatusCode, string(respBody), nil
+}
+
+func truncModelTest(s string, n int) string {
+	r := []rune(strings.TrimSpace(s))
+	if len(r) <= n {
+		return string(r)
+	}
+	return string(r[:n]) + "…"
 }
 
 // ---------- contract（产品① 合同线核心实体） ----------
