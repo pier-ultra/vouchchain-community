@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"net"
@@ -140,6 +142,28 @@ func main() {
 	// 迁移脚本已内嵌（migrationsFS），裸二进制单文件分发无需旁置 migrations/ 目录。
 	if err := bootstrap.RunMigrations(migrationsFS); err != nil {
 		g.Log().Fatalf(context.Background(), "[migrate] 启动迁移失败：%v", err)
+	}
+	// 主密钥自动供给：环境变量优先；否则读 .aeskey；再否则自动生成并落盘。
+	// 解决「重启漏带 APP_AES_KEY → 库内密文解不开 → AI/OCR 静默失效」的痛点（cryptoutil 内部 SHA-256 派生）。
+	if os.Getenv("APP_AES_KEY") == "" {
+		if data, err := os.ReadFile(".aeskey"); err == nil {
+			key := strings.TrimSpace(string(data))
+			if key != "" {
+				os.Setenv("APP_AES_KEY", key)
+				g.Log().Infof(context.Background(), "[crypto] 已从 .aeskey 加载主密钥（长度 %d）", len(key))
+			}
+		} else {
+			raw := make([]byte, 32)
+			if _, err := rand.Read(raw); err == nil {
+				key := hex.EncodeToString(raw)
+				if werr := os.WriteFile(".aeskey", []byte(key), 0o600); werr == nil {
+					os.Setenv("APP_AES_KEY", key)
+					g.Log().Infof(context.Background(), "[crypto] 已生成主密钥并保存到 .aeskey（重启无需再带 APP_AES_KEY）")
+				} else {
+					g.Log().Warningf(context.Background(), "[crypto] 生成 .aeskey 失败：%v", werr)
+				}
+			}
+		}
 	}
 	// 启动自检：库里有加密密钥但当前进程没有主密钥时，明确告警（不静默降级为"AI 不可用"）
 	if os.Getenv("APP_AES_KEY") == "" {
