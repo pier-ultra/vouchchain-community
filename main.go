@@ -206,6 +206,8 @@ func main() {
 		group.DELETE("/contracts/{id}", controller.ContractDelete)
 		// AI 生成合同（产出自动进流水线）
 		group.POST("/contracts/generate", controller.ContractGenerate)
+		// AI 生成合同（SSE 流式：过程日志逐步推送 + docx 交付件入文件中心）
+		group.POST("/contracts/generate/stream", controller.ContractGenerateStream)
 		// 合同文件上传 + AI 抽取流水线（AC1.1-1.6）
 		group.POST("/contracts/upload", controller.ContractFileUpload)
 		group.GET("/contracts/files", controller.ContractFileList)
@@ -504,6 +506,7 @@ func main() {
 		group.GET("/files", controller.FileList)
 		group.GET("/files/{id}/download", controller.FileDownload)
 		group.GET("/files/{id}/preview", controller.FilePreview)
+		group.GET("/files/{id}/preview-html", controller.FilePreviewHTML)
 		group.DELETE("/files/{id}", controller.FileDelete)
 		// 每日工作台：概览聚合 + 晨/晚总结（主动式 Agent 推送，WS 广播）
 		group.GET("/daily", controller.DailyOverview)

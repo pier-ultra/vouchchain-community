@@ -217,7 +217,28 @@ export interface Obligation {
   dueSoon: boolean
   createdAt: string
   updatedAt: string
-}export const api = {
+}
+
+// AI 生成过程日志事件（SSE event: log）
+export interface GenLogEvent {
+  step: string
+  level: string
+  msg: string
+  time: string
+}
+// AI 生成完成后的结果（SSE event: done → data）
+export interface GenResultData {
+  fileId: number
+  docxFileId: number
+  filename: string
+  size: number
+  chars: number
+  lines: number
+  clauses: number
+  status: string
+}
+
+export const api = {
   http, // 文件中心等复杂上传/下载场景直接用 axios 实例
   health: () => http.get<never, ApiResult>('/health'),
   // SSO 会话：菜单/角色/按钮权限的唯一来源（生产态需 Bearer token）
@@ -305,6 +326,89 @@ export interface Obligation {
     if (refFile) fd.append('file', refFile)
     return http.post<never, ApiResult<{ id: number; status: string }>>('/contracts/generate', fd, { timeout: 180000 })
   },
+  // AI 生成合同（SSE 流式）：过程日志逐步回调，解决「点一下转圈 180 秒全黑盒」问题。
+  // 不走 axios：需要读流；header 手动补齐（与 axios 拦截器一致）
+  generateContractStream: (
+    params: {
+      contractType: string
+      partyA: string
+      partyB: string
+      subject: string
+      amount: string
+      term: string
+      notes: string
+    },
+    refFile: File | null,
+    handlers: {
+      onLog?: (e: GenLogEvent) => void
+      onDone?: (d: { code: number; data?: GenResultData; message?: string }) => void
+      onError?: (msg: string) => void
+    },
+  ): Promise<void> => {
+    const fd = new FormData()
+    Object.entries(params).forEach(([k, v]) => fd.append(k, v))
+    if (refFile) fd.append('file', refFile)
+    const headers: Record<string, string> = { Accept: 'text/event-stream' }
+    const token = localStorage.getItem('ch_token')
+    if (token) headers.Authorization = `Bearer ${token}`
+    headers['X-User-Role'] = localStorage.getItem('ch_role') || 'admin'
+    const user = localStorage.getItem('ch_user')
+    if (user) headers['X-User-Name'] = user
+    const entity = localStorage.getItem('ch_entity')
+    if (entity && entity !== '0') headers['X-Legal-Entity-Id'] = entity
+
+    return (async () => {
+      let resp: Response
+      try {
+        resp = await fetch('/api/contracts/generate/stream', { method: 'POST', headers, body: fd })
+      } catch (e: any) {
+        handlers.onError?.('无法连接服务器：' + (e?.message || String(e)))
+        return
+      }
+      if (!resp.ok || !resp.body) {
+        handlers.onError?.('服务器返回异常（HTTP ' + resp.status + '）')
+        return
+      }
+      const reader = resp.body.getReader()
+      const dec = new TextDecoder('utf-8')
+      let buf = ''
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+        // SSE 帧以空行分隔；未凑齐一帧的部分留在 buf 等下一块
+        let idx = buf.indexOf('\n\n')
+        while (idx >= 0) {
+          const frame = buf.slice(0, idx)
+          buf = buf.slice(idx + 2)
+          let event = 'message'
+          const dataLines: string[] = []
+          frame.split('\n').forEach((line) => {
+            if (line.startsWith('event:')) event = line.slice(6).trim()
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+          })
+          if (!dataLines.length) continue
+          let payload: any
+          try {
+            payload = JSON.parse(dataLines.join('\n'))
+          } catch {
+            continue
+          }
+          if (event === 'log') handlers.onLog?.(payload as GenLogEvent)
+          else if (event === 'error') handlers.onError?.(payload?.message || '生成失败')
+          else if (event === 'done') handlers.onDone?.(payload)
+          idx = buf.indexOf('\n\n')
+        }
+      }
+    })()
+  },
+  // 文件中心在线预览：docx/txt/pdf 正文 → 自包含 HTML（浏览器原生打不开 docx，故服务端转 HTML）
+  filePreviewHtml: (id: number) =>
+    http.get<never, ApiResult<{ fileId: number; filename: string; chars: number; html: string }>>(
+      `/files/${id}/preview-html`,
+    ),
+  filePreviewUrl: (id: number) => `/api/files/${id}/preview`,
+  fileDownloadUrl: (id: number) => `/api/files/${id}/download`,
   // 原文定位（AC1.5）
   fileText: (id: number) =>
     http.get<never, ApiResult<{ id: number; filename: string; text: string }>>(`/contracts/files/${id}/text`),

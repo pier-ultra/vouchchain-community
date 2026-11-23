@@ -4,11 +4,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
+	"vouchchain/pkg/docxgen"
+	"vouchchain/pkg/fileparse"
 	"vouchchain/pkg/filestore"
 )
 
@@ -160,6 +165,54 @@ func FilePreview(r *ghttp.Request) {
 	r.Response.Header().Set("Content-Type", ct)
 	r.Response.Header().Set("Content-Disposition", "inline")
 	r.Response.Write(data)
+}
+
+// FilePreviewHTML GET /api/files/{id}/preview-html：在线预览（docx/txt/pdf → 富文本 HTML）
+//
+// 浏览器原生只认 PDF/图片，docx 会直接下载或报打不开。这里统一把正文提出来
+// 渲染成自包含 HTML（标题居中 / 条款加粗 / 正文首行缩进，与 Word 打开效果对齐），
+// 前端用 <iframe :srcdoc> 呈现，这样 docx、txt、pdf 都能在页内直接预览。
+func FilePreviewHTML(r *ghttp.Request) {
+	id, filename, _, key, ok := loadFileEntry(r)
+	if !ok {
+		return
+	}
+	data, err := filestore.Pick(r.Context()).Get(r.Context(), key)
+	if err != nil {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "读取失败: " + err.Error()})
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	var text string
+	switch ext {
+	case ".docx", ".pdf":
+		// fileparse.ExtractText 按路径解析，先落临时文件再 defer 清理
+		tmp := filepath.Join(os.TempDir(), fmt.Sprintf("vcprev_%d_%d%s", id, time.Now().UnixNano(), ext))
+		if werr := os.WriteFile(tmp, data, 0o644); werr != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "写入临时文件失败: " + werr.Error()})
+			return
+		}
+		text, err = fileparse.ExtractText(tmp)
+		os.Remove(tmp)
+		if err != nil {
+			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "解析文件内容失败: " + err.Error()})
+			return
+		}
+	default:
+		// .txt 及其他纯文本：直接渲染
+		text = strings.TrimSpace(string(data))
+	}
+	if text == "" {
+		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "该文件没有可预览的正文内容"})
+		return
+	}
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": g.Map{
+		"fileId":   id,
+		"filename": filename,
+		"chars":    len([]rune(text)),
+		"html":     docxgen.ToHTML(text),
+	}})
 }
 
 // FileDelete DELETE /api/files/{id}
