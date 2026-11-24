@@ -18,9 +18,14 @@ import (
 	"vouchchain/internal/entity"
 	"vouchchain/pkg/agent"
 	"vouchchain/pkg/cryptoutil"
+	"vouchchain/pkg/docxgen"
 	"vouchchain/pkg/fileparse"
+	"vouchchain/pkg/filestore"
 	"vouchchain/pkg/ws"
 )
+
+// mimeDocx Word 文档 MIME 类型（文件中心 content_type / Content-Type 共用）
+const mimeDocx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 func Health(r *ghttp.Request) {
 	r.Response.WriteJson(g.Map{"status": "ok"})
@@ -237,7 +242,7 @@ func ModelConfigTest(r *ghttp.Request) {
 			return
 		}
 		r.Response.WriteJsonExit(g.Map{"code": 0, "message": fmt.Sprintf("端点可达（HTTP %d，业务协议未深测）", status), "data": g.Map{
-			"elapsedMs": elapsed,
+			"elapsedMs":  elapsed,
 			"httpStatus": status,
 		}})
 	}
@@ -283,8 +288,8 @@ func probeEmbedding(ctx context.Context, baseUrl, model, apiKey string) (int, er
 func probeEndpoint(ctx context.Context, baseUrl, model, apiKey string) (int, string, error) {
 	endpoint := strings.TrimRight(baseUrl, "/") + "/chat/completions"
 	payload := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{{"role": "user", "content": "ping"}},
+		"model":      model,
+		"messages":   []map[string]string{{"role": "user", "content": "ping"}},
 		"max_tokens": 1,
 	}
 	body, _ := json.Marshal(payload)
@@ -1040,9 +1045,46 @@ func ContractFileExport(r *ghttp.Request) {
 	r.Response.Write(body)
 }
 
-// ---------- AI 生成合同（用户 11-14 拍板第一能力；产出自动进流水线） ----------
+// ---------- AI 生成合同（过程日志流式可见 + docx 交付 + 自动进文件中心与流水线） ----------
+//
+// 用户 11-23 拍板优化两点：
+//  1) 过程可见：原来点一下就转圈 180s 全黑盒；现在 /contracts/generate/stream 用 SSE
+//     逐步推送过程日志（校验→参考文件→组装指令→AI 起草→文档生成→文件中心→流水线）。
+//  2) 交付可用：产出 Word 文档（.docx）并写入文件中心（bizType=contract），
+//     可在文件中心列表看到、在线预览（/files/{id}/preview-html）、下载。
+//     不产 PDF：项目无中文字体资源，中文 PDF 会出方块，宁缺毋假。
 
-func ContractGenerate(r *ghttp.Request) {
+// genLogFn 过程日志回调（SSE 推给前端 / 同步接口写服务端日志）
+type genLogFn func(step, level, msg string)
+
+// contractGenResult 生成结果（前端结果卡片与流水线跳转用）
+type contractGenResult struct {
+	FileID     int64  `json:"fileId"`
+	DocxFileID int64  `json:"docxFileId"`
+	Filename   string `json:"filename"`
+	Size       int    `json:"size"`
+	Chars      int    `json:"chars"`
+	Lines      int    `json:"lines"`
+	Clauses    int    `json:"clauses"`
+	Status     string `json:"status"`
+}
+
+func humanSize(n int) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d B", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1f KB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%.2f MB", float64(n)/1024/1024)
+	}
+}
+
+// runContractGenerate 生成核心逻辑（同步与流式共用）：logf 为过程日志回调
+func runContractGenerate(r *ghttp.Request, logf genLogFn) (*contractGenResult, error) {
+	if logf == nil {
+		logf = func(step, level, msg string) {}
+	}
 	var p agent.GenerateParams
 	p.ContractType = r.Get("contractType").String()
 	p.PartyA = r.Get("partyA").String()
@@ -1052,63 +1094,180 @@ func ContractGenerate(r *ghttp.Request) {
 	p.Term = r.Get("term").String()
 	p.ExtraNotes = r.Get("notes").String()
 	if strings.TrimSpace(p.PartyA) == "" && strings.TrimSpace(p.PartyB) == "" && strings.TrimSpace(p.ExtraNotes) == "" {
-		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "请至少填写一方主体或一段要点描述"})
-		return
+		return nil, fmt.Errorf("请至少填写一方主体或一段要点描述")
 	}
+	logf("参数校验", "info", fmt.Sprintf("已确认合同要素：类型「%s」、甲方「%s」、乙方「%s」",
+		orDash(p.ContractType), orDash(p.PartyA), orDash(p.PartyB)))
+
 	// 可选参考文件（为空则仅凭要素生成）
 	if file := r.GetUploadFile("file"); file != nil {
 		if !fileparse.IsSupported(file.Filename) {
-			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "参考文件仅支持 PDF/DOCX/TXT"})
-			return
+			return nil, fmt.Errorf("参考文件仅支持 PDF/DOCX/TXT")
 		}
 		fh, err := file.Open()
 		if err != nil {
-			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "读取参考文件失败: " + err.Error()})
-			return
+			return nil, fmt.Errorf("读取参考文件失败: %w", err)
 		}
-		defer fh.Close()
-		tmp, err := fileparse.SaveUpload(uploadDir+"/ref", file.Filename, mustReadAll(fh))
+		data := mustReadAll(fh)
+		fh.Close()
+		tmp, err := fileparse.SaveUpload(uploadDir+"/ref", file.Filename, data)
 		if err != nil {
-			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "保存参考文件失败: " + err.Error()})
-			return
+			return nil, fmt.Errorf("保存参考文件失败: %w", err)
 		}
-		text, err := fileparse.ExtractText(tmp)
+		refText, err := fileparse.ExtractText(tmp)
 		if err != nil {
-			r.Response.WriteJsonExit(g.Map{"code": 1, "message": "解析参考文件失败: " + err.Error()})
-			return
+			return nil, fmt.Errorf("解析参考文件失败: %w", err)
 		}
-		p.ReferenceText = text
+		p.ReferenceText = refText
+		logf("参考文件", "info", fmt.Sprintf("已解析参考文件「%s」，提取正文 %d 字，仅用于参考结构与行文风格",
+			file.Filename, len([]rune(refText))))
+	} else {
+		logf("参考文件", "info", "未提供参考文件，按合同要素直接起草通用条款")
 	}
+
+	logf("组装指令", "info", fmt.Sprintf("组装生成指令：标的「%s」、金额「%s」、履行期限「%s」、要点 %d 字",
+		orDash(p.Subject), orDash(p.Amount), orDash(p.Term), len([]rune(p.ExtraNotes))))
+
+	start := time.Now()
 	text, err := agent.GenerateContract(context.Background(), p)
 	if err != nil {
-		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
-		return
+		return nil, fmt.Errorf("AI 起草失败: %w", err)
 	}
-	// 生成结果存 .txt 进同一流水线（抽取→复核→审批→签署）
-	path, err := fileparse.SaveUpload(uploadDir+"/generated", fmt.Sprintf("AI生成-%s-%s.txt", p.ContractType, time.Now().Format("20060102150405")), []byte(text))
+	logf("AI 起草", "info", fmt.Sprintf("AI 已完成正文起草，共 %d 字（耗时 %.1f 秒）",
+		len([]rune(text)), time.Since(start).Seconds()))
+
+	// 交付格式：.docx（Word/WPS 可编辑）；项目无中文字体资源，中文 PDF 会出方块，故不产 PDF
+	docxData, err := docxgen.Build(text)
 	if err != nil {
-		r.Response.WriteJsonExit(g.Map{"code": 1, "message": "保存生成合同失败: " + err.Error()})
-		return
+		return nil, fmt.Errorf("生成 Word 文档失败: %w", err)
 	}
+	st := docxgen.Analyze(text)
+	logf("文档生成", "info", fmt.Sprintf("已生成 Word 文档（.docx，%s），共 %d 段、%d 条条款",
+		humanSize(len(docxData)), st.Lines, st.Clauses))
+
+	// 流水线仍走 .txt（抽取→复核→审批→签署 逻辑不变）
 	now := time.Now()
+	stamp := now.Format("20060102150405")
+	base := "AI生成-" + orDash(p.ContractType) + "-" + stamp
+	txtPath, err := fileparse.SaveUpload(uploadDir+"/generated", base+".txt", []byte(text))
+	if err != nil {
+		return nil, fmt.Errorf("保存合同正文失败: %w", err)
+	}
+	if _, err := fileparse.SaveUpload(uploadDir+"/generated", base+".docx", docxData); err != nil {
+		return nil, fmt.Errorf("保存 Word 文档失败: %w", err)
+	}
+
 	res, err := g.DB().Model("contract_file").Data(g.Map{
-		"filename": "AI生成-" + orDash(p.ContractType) + "-" + time.Now().Format("20060102150405") + ".txt",
-		"path":     path, "file_hash": fmt.Sprintf("%x", sha256.Sum256([]byte(text))),
+		"filename": base + ".txt",
+		"path":     txtPath, "file_hash": fmt.Sprintf("%x", sha256.Sum256([]byte(text))),
 		"status": "pending", "stage": "", "progress": 0, "pipeline": defaultPipelineJSON(),
 		"template": "general", "text_content": text,
 		"legal_entity_id": scopeEntity(r),
 		"created_at":      now, "updated_at": now,
 	}).Insert()
 	if err != nil {
+		return nil, fmt.Errorf("合同入库失败: %w", err)
+	}
+	id, _ := res.LastInsertId()
+
+	// 交付件入文件中心：bizType=contract，bizId=contract_file.id（同 sha256 同业务自动去重）
+	ctx := r.Context()
+	sha := sha256Hex(docxData)
+	docxName := base + ".docx"
+	key := storeKey("contract", docxName, sha)
+	store := filestore.Pick(ctx)
+	if err := store.Put(ctx, key, docxData, mimeDocx); err != nil {
+		return nil, fmt.Errorf("文档写入文件中心失败: %w", err)
+	}
+	fres, err := g.DB().Model("file_entry").Data(g.Map{
+		"biz_type": "contract", "biz_id": id,
+		"filename": docxName, "content_type": mimeDocx,
+		"size_bytes": len(docxData), "sha256": sha,
+		"storage": store.Kind(), "storage_key": key,
+		"uploader": r.GetCtxVar("user").String(), "created_at": time.Now(),
+	}).Insert()
+	if err != nil {
+		return nil, fmt.Errorf("写入文件中心记录失败: %w", err)
+	}
+	docxID, _ := fres.LastInsertId()
+	logf("文件中心", "info", fmt.Sprintf("Word 文档已存入文件中心（编号 #%d），可在「文件中心 → 合同」查看、在线预览或下载", docxID))
+
+	go runExtraction(id)
+	logf("进入流水线", "info", "合同已进入流水线：抽取 → 复核 → 审批 → 签署，可在「任务中心」跟进进度")
+	audit(r, "contract.generate", "contract_file", id, g.Map{
+		"contractType": p.ContractType, "partyA": p.PartyA, "partyB": p.PartyB,
+		"hasRef": p.ReferenceText != "", "docxFileId": docxID, "chars": st.Chars,
+	})
+	return &contractGenResult{
+		FileID: id, DocxFileID: docxID, Filename: docxName, Size: len(docxData),
+		Chars: st.Chars, Lines: st.Lines, Clauses: st.Clauses, Status: "pending",
+	}, nil
+}
+
+// ContractGenerate 同步生成（保留原契约：返回 JSON，供脚本/旧前端使用）
+func ContractGenerate(r *ghttp.Request) {
+	logf := func(step, level, msg string) {
+		g.Log().Infof(r.GetCtx(), "[contract.generate] %s | %s", step, msg)
+	}
+	res, err := runContractGenerate(r, logf)
+	if err != nil {
 		r.Response.WriteJsonExit(g.Map{"code": 1, "message": err.Error()})
 		return
 	}
-	id, _ := res.LastInsertId()
-	audit(r, "contract.generate", "contract_file", id, g.Map{
-		"contractType": p.ContractType, "partyA": p.PartyA, "partyB": p.PartyB, "hasRef": p.ReferenceText != "",
-	})
-	go runExtraction(id)
-	r.Response.WriteJsonExit(g.Map{"code": 0, "data": g.Map{"id": id, "status": "pending"}})
+	r.Response.WriteJsonExit(g.Map{"code": 0, "data": g.Map{"id": res.FileID, "status": res.Status}})
+}
+
+// preloadGenerateForm 流式生成前置：在响应 flush 之前读完全部入参（含可选参考文件）。
+// 否则 gf 在响应已开始输出后再次触发 multipart 解析会失败（invalid Read on closed Body）。
+func preloadGenerateForm(r *ghttp.Request) {
+	for _, k := range []string{"contractType", "partyA", "partyB", "subject", "amount", "term", "notes"} {
+		_ = r.Get(k).String()
+	}
+	_ = r.GetUploadFile("file")
+}
+
+// ContractGenerateStream SSE 流式生成：过程日志逐步推给前端（event: log / done / error）
+func ContractGenerateStream(r *ghttp.Request) {
+	// 必须先解析请求再开始流式输出：gf 在响应 flush 之后若再触发 multipart 解析，
+	// 会因请求体已关闭而失败（invalid Read on closed Body）
+	preloadGenerateForm(r)
+
+	h := r.Response.Header()
+	h.Set("Content-Type", "text/event-stream; charset=utf-8")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Connection", "keep-alive")
+	h.Set("X-Accel-Buffering", "no")
+	h.Set("Content-Encoding", "identity")
+
+	emit := func(event, payload string) {
+		frame := "event: " + event + "\ndata: " + payload + "\n\n"
+		// gf v2 响应先写内部 buffer，必须显式 Flush 才真正推给客户端（SSE 实时性关键）
+		r.Response.Write(frame)
+		r.Response.Flush()
+	}
+	logf := func(step, level, msg string) {
+		emit("log", sseJSON(g.Map{
+			"step": step, "level": level, "msg": msg, "time": time.Now().Format("15:04:05"),
+		}))
+	}
+	logf("开始", "info", "已接收生成请求，开始处理")
+
+	res, err := runContractGenerate(r, logf)
+	if err != nil {
+		emit("error", sseJSON(g.Map{"message": err.Error()}))
+		emit("done", sseJSON(g.Map{"code": 1, "message": err.Error()}))
+		return
+	}
+	emit("done", sseJSON(g.Map{"code": 0, "data": res}))
+}
+
+// sseJSON 序列化 SSE 数据行（单行 JSON，避免换行破坏 SSE 帧）
+func sseJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return `{"message":"序列化失败"}`
+	}
+	return string(b)
 }
 
 func mustReadAll(fh io.Reader) []byte {

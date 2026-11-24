@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -30,13 +32,20 @@ type Skill struct {
 
 const skillsRoot = "skills"
 
-// zip 内合法成员路径（防 zip-slip）
+// 技能名白名单：仅字母/数字/下划线/连字符，1-64 位（防 name 拼路径穿越）
+var skillNameRe = regexp.MustCompile(`^[A-Za-z0-9_\-]{1,64}$`)
+
+// zip 内合法成员路径（防 zip-slip）：先查原始路径再规范化，
+// 拒绝 ..、NUL、绝对路径、盘符；返回以 / 分隔的相对路径
 func safeZipPath(name string) (string, error) {
-	clean := filepath.Clean("/" + name)
-	if strings.Contains(clean, "..") {
+	if strings.ContainsRune(name, 0) || strings.Contains(name, "..") {
 		return "", fmt.Errorf("zip 内含非法路径: %s", name)
 	}
-	return strings.TrimPrefix(clean, "/"), nil
+	clean := path.Clean(strings.ReplaceAll(name, "\\", "/"))
+	if clean == "." || strings.HasPrefix(clean, "/") || (len(clean) >= 2 && clean[1] == ':') {
+		return "", fmt.Errorf("zip 内含非法路径: %s", name)
+	}
+	return clean, nil
 }
 
 // installFromBytes 解压 zip（不落盘到临时文件：直接流式解）到 skills/{name}/
@@ -74,8 +83,12 @@ func installFromBytes(data []byte) (name, description, triggers, instructions st
 	if name == "" || name == "." {
 		return "", "", "", "", errors.New("SKILL.md 未声明 name 且无法从目录推断")
 	}
+	if !skillNameRe.MatchString(name) {
+		return "", "", "", "", errors.New("SKILL.md 的 name 含非法字符（仅允许字母/数字/下划线/连字符，≤64 位）")
+	}
 	// 解压全部文件到 skills/{name}/
 	root := filepath.Join(skillsRoot, name)
+	rootPrefix := filepath.Clean(root) + string(os.PathSeparator)
 	for _, f := range zr.File {
 		p, perr := safeZipPath(f.Name)
 		if perr != nil {
@@ -92,6 +105,10 @@ func installFromBytes(data []byte) (name, description, triggers, instructions st
 			continue
 		}
 		dst := filepath.Join(root, rel)
+		// 解压目标必须仍在 skills/{name}/ 内（防 zip-slip 双保险）
+		if !strings.HasPrefix(filepath.Clean(dst)+string(os.PathSeparator), rootPrefix) {
+			return "", "", "", "", fmt.Errorf("zip 内含非法路径: %s", f.Name)
+		}
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return "", "", "", "", err
 		}

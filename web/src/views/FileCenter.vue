@@ -41,13 +41,17 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- docx/txt 等浏览器打不开的类型：走服务端转 HTML 的弹框预览 -->
+    <FilePreviewDialog v-model="pvOpen" :file-id="previewRow?.id" :filename="previewRow?.filename" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api'
+import FilePreviewDialog from '../components/FilePreviewDialog.vue'
 
 const rows = ref<any[]>([])
 const loading = ref(false)
@@ -56,6 +60,13 @@ const bizType = ref('')
 const keyword = ref('')
 const storeKind = ref('local')
 const role = localStorage.getItem('ch_role') || 'viewer'
+const previewRow = ref<any>(null)
+const pvOpen = computed({
+  get: () => previewRow.value !== null,
+  set: (v: boolean) => {
+    if (!v) previewRow.value = null
+  },
+})
 
 function fmtSize(n: number): string {
   if (n < 1024) return n + ' B'
@@ -92,11 +103,23 @@ async function doUpload(opt: any) {
   }
 }
 
+// 浏览器能直接渲染的才新窗口直出；docx 等新窗口只会触发下载，改走弹框 HTML 预览
+function canInline(row: any): boolean {
+  const ct: string = row?.contentType || ''
+  if (ct.startsWith('application/pdf') || ct.startsWith('image/')) return true
+  const name: string = row?.filename || ''
+  return /\.(pdf|png|jpe?g|gif|bmp|webp)$/i.test(name)
+}
+
 function preview(row: any) {
-  window.open(`/api/files/${row.id}/preview`, '_blank')
+  if (canInline(row)) {
+    window.open(api.filePreviewUrl(row.id), '_blank')
+    return
+  }
+  previewRow.value = row
 }
 function download(row: any) {
-  window.open(`/api/files/${row.id}/download`, '_blank')
+  window.open(api.fileDownloadUrl(row.id), '_blank')
 }
 async function del(row: any) {
   try {

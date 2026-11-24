@@ -22,9 +22,9 @@
   },
   "devDependencies": {
     "@dcloudio/types": "^3.4.8",
-    "@dcloudio/uni-cli-shared": "3.0.0-alpha-5030620261106001",
-    "@dcloudio/uni-stacktracey": "3.0.0-alpha-5030620261106001",
-    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5030620261106001",
+		"@dcloudio/uni-cli-shared": "3.0.0-alpha-5030720261117001",
+		"@dcloudio/uni-stacktracey": "3.0.0-alpha-5030720261117001",
+		"@dcloudio/vite-plugin-uni": "3.0.0-alpha-5030720261117001",
     "adm-zip": "^0.6.1",
     "cookie": "^2.0.2",
     "jpeg-js": "^0.4.4",

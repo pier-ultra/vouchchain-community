@@ -64,3 +64,6 @@ vc_run.err
 # 本地数据 seed 脚本（seed_model_config.py 含硬编码演示密钥，严禁入库）
 scripts/seed_model_config.py
 scripts/seed_sample_data.py
+# 首次运行自动生成的本地配置与运行期数据（含 devMode 开关与 SQLite 库）
+pkg/cache/config.yml
+pkg/cache/data/
