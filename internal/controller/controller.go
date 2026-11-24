@@ -242,7 +242,7 @@ func ModelConfigTest(r *ghttp.Request) {
 			return
 		}
 		r.Response.WriteJsonExit(g.Map{"code": 0, "message": fmt.Sprintf("端点可达（HTTP %d，业务协议未深测）", status), "data": g.Map{
-			"elapsedMs": elapsed,
+			"elapsedMs":  elapsed,
 			"httpStatus": status,
 		}})
 	}
@@ -288,8 +288,8 @@ func probeEmbedding(ctx context.Context, baseUrl, model, apiKey string) (int, er
 func probeEndpoint(ctx context.Context, baseUrl, model, apiKey string) (int, string, error) {
 	endpoint := strings.TrimRight(baseUrl, "/") + "/chat/completions"
 	payload := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{{"role": "user", "content": "ping"}},
+		"model":      model,
+		"messages":   []map[string]string{{"role": "user", "content": "ping"}},
 		"max_tokens": 1,
 	}
 	body, _ := json.Marshal(payload)
